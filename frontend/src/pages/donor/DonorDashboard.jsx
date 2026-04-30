@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { LayoutDashboard, User, Settings, LogOut, Droplets, History, Calendar, Phone, Hospital, IdCard, Edit2, Camera, QrCode, Menu, X as CloseIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getDonorProfile, updateDonorProfile } from '../../services/donorService';
+import { getDonorProfile, updateDonorProfile, getDonorDashboard } from '../../services/donorService';
+import { getDonorAlerts, markAlertRead } from '../../services/alertService';
 import { QRCodeCanvas } from 'qrcode.react';
 import Swal from 'sweetalert2';
-import { Bell, MapPin, Search, Activity, CheckCircle, XCircle } from 'lucide-react';
+import { Bell, MapPin, Search, Activity, CheckCircle, XCircle, X as XIcon, AlertTriangle, Info } from 'lucide-react';
 import './DonorDashboard.css';
 const DonorSideBar = ({ profile, currentView, setView, onUpdate, isMobileOpen, closeMobileMenu }) => {
   const navigate = useNavigate();
@@ -203,26 +204,38 @@ const ProfileView = ({ profile, onUpdate }) => {
     </div>
   );
 };
-const DashboardOverview = ({ profile, onToggleAvailability }) => {
-  // Add some mocked calculation for Next Eligible Date
-  const calculateNextEligible = (lastDate) => {
-    if (!lastDate) return 'Eligible Now';
-    const last = new Date(lastDate);
-    const next = new Date(last.setDate(last.getDate() + 90)); // Assuming 90 days gap
-    return next > new Date() ? next.toLocaleDateString() : 'Eligible Now';
-  };
+const DashboardOverview = ({ profile, dashboardStats, alerts, onDismissAlert, onToggleAvailability }) => {
+  // Use real server-computed data from /donor/dashboard/ API
+  const nextEligible = dashboardStats?.next_eligible
+    ? new Date(dashboardStats.next_eligible).toLocaleDateString()
+    : 'Eligible Now';
+  const isEligible = dashboardStats?.is_eligible ?? true;
+  const isAvailable = dashboardStats?.is_available ?? profile?.is_available ?? true;
 
-  const nextEligible = calculateNextEligible(profile?.last_donation);
-  const isAvailable = profile?.is_available ?? true; // Defaults to true if missing
-
-  // Mock nearby activity & alerts (to be replaced by API in next phase)
-  const alerts = [
-    { id: 1, type: 'info', message: 'You are eligible to donate blood today!' }
-  ];
+  // Mock nearby activity (to be replaced by API in Phase 5)
   const nearbyRequests = [
     { id: 1, title: 'Urgent: O+ Blood Needed', location: 'City Hospital (2km)', urgency: '🔴 Urgent' },
     { id: 2, title: 'Blood Camp: Summer Drive', location: 'Town Hall (5km)', urgency: '🟢 Normal' }
   ];
+
+  const alertIcon = (type) => {
+    switch (type) {
+      case 'urgent': return <AlertTriangle size={18} />;
+      case 'eligibility': return <CheckCircle size={18} />;
+      case 'camp': return <MapPin size={18} />;
+      default: return <Info size={18} />;
+    }
+  };
+
+  const alertClass = (type) => {
+    switch (type) {
+      case 'urgent': return 'alert-card urgent-alert';
+      case 'eligibility': return 'alert-card success-alert';
+      default: return 'alert-card info-alert';
+    }
+  };
+
+  const unreadCount = alerts?.filter(a => !a.is_read)?.length || 0;
 
   return (
     <div className="dashboard-v2 animate-in">
@@ -231,13 +244,28 @@ const DashboardOverview = ({ profile, onToggleAvailability }) => {
           <h1 className="page-title" style={{ marginBottom: '4px' }}>Hi, {profile?.fullName?.split(' ')[0] || 'Donor'}!</h1>
           <p className="page-subtitle">Your quick donation dashboard.</p>
         </div>
+        {unreadCount > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#fef2f2', padding: '6px 14px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600, color: '#b91c1c' }}>
+            <Bell size={16} /> {unreadCount} unread
+          </div>
+        )}
       </div>
 
-      {alerts.length > 0 && (
+      {alerts && alerts.length > 0 && (
         <div className="alerts-section">
-          {alerts.map(a => (
-            <div key={a.id} className="alert-card info-alert">
-              <Bell size={18} /> <span>{a.message}</span>
+          {alerts.filter(a => !a.is_read).map(a => (
+            <div key={a.id} className={alertClass(a.alert_type)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {alertIcon(a.alert_type)}
+                <span>{a.message}</span>
+              </div>
+              <button
+                onClick={() => onDismissAlert(a.id)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', borderRadius: '50%', display: 'flex', color: 'inherit', opacity: 0.6 }}
+                title="Dismiss"
+              >
+                <XIcon size={16} />
+              </button>
             </div>
           ))}
         </div>
@@ -281,6 +309,11 @@ const DashboardOverview = ({ profile, onToggleAvailability }) => {
               {isAvailable ? 'Available' : 'Unavailable'}
             </h3>
           </div>
+          {!isEligible && (
+            <p style={{ fontSize: '0.8rem', color: '#ef4444', marginTop: '6px' }}>
+              Not eligible until {nextEligible}
+            </p>
+          )}
         </div>
       </div>
 
@@ -289,12 +322,13 @@ const DashboardOverview = ({ profile, onToggleAvailability }) => {
       <div className="main-actions-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
         <button 
           className="action-btn toggle-status-btn" 
-          onClick={onToggleAvailability}
-          style={{ padding: '1rem', borderRadius: '12px', border: '1px solid #e5e7eb', background: isAvailable ? '#fee2e2' : '#dcfce7', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', transition: 'all 0.2s' }}
+          onClick={isEligible ? onToggleAvailability : null}
+          disabled={!isEligible}
+          style={{ padding: '1rem', borderRadius: '12px', border: '1px solid #e5e7eb', background: !isEligible ? '#f3f4f6' : isAvailable ? '#fee2e2' : '#dcfce7', cursor: isEligible ? 'pointer' : 'not-allowed', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', transition: 'all 0.2s', opacity: isEligible ? 1 : 0.6 }}
         >
-          <Activity size={24} color={isAvailable ? "#ef4444" : "#10b981"} />
+          <Activity size={24} color={!isEligible ? '#9ca3af' : isAvailable ? '#ef4444' : '#10b981'} />
           <span style={{ fontSize: '1.1rem', fontWeight: 600, color: '#374151' }}>
-            Mark as {isAvailable ? 'Unavailable' : 'Available'}
+            {!isEligible ? `Not Eligible Yet` : `Mark as ${isAvailable ? 'Unavailable' : 'Available'}`}
           </span>
         </button>
 
@@ -356,14 +390,21 @@ const DashboardOverview = ({ profile, onToggleAvailability }) => {
 };
 const DonorDashboard = () => {
   const [profile, setProfile] = useState(null);
+  const [dashboardStats, setDashboardStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const fetchProfile = async () => {
+
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const data = await getDonorProfile();
-      setProfile(data); // 1. Loads data first & saves as Original Data
+      // Fetch both profile and dashboard stats in parallel
+      const [profileData, statsData] = await Promise.all([
+        getDonorProfile(),
+        getDonorDashboard(),
+      ]);
+      setProfile(profileData);
+      setDashboardStats(statsData);
     } catch (err) {
       console.error("Fetch error", err);
     } finally {
@@ -372,11 +413,12 @@ const DonorDashboard = () => {
   };
 
   const handleToggleAvailability = async () => {
-    if (!profile) return;
+    if (!profile || !dashboardStats?.is_eligible) return;
     try {
       const newStatus = !profile.is_available;
       // Optimistic update
       setProfile({ ...profile, is_available: newStatus });
+      setDashboardStats({ ...dashboardStats, is_available: newStatus });
       await updateDonorProfile({ is_available: newStatus });
       Swal.fire({
         icon: 'success',
@@ -386,12 +428,13 @@ const DonorDashboard = () => {
     } catch (err) {
       // Revert on error
       setProfile({ ...profile, is_available: !profile.is_available });
+      setDashboardStats({ ...dashboardStats, is_available: profile.is_available });
       Swal.fire({ icon: 'error', title: 'Failed to update' });
     }
   };
 
   useEffect(() => {
-    fetchProfile();
+    fetchData();
   }, []);
   return (
     <div className="donor-container flex-layout">
@@ -399,7 +442,7 @@ const DonorDashboard = () => {
         profile={profile} 
         currentView={view} 
         setView={setView} 
-        onUpdate={fetchProfile} 
+        onUpdate={fetchData} 
         isMobileOpen={isMobileMenuOpen}
         closeMobileMenu={() => setIsMobileMenuOpen(false)}
       />
@@ -419,8 +462,8 @@ const DonorDashboard = () => {
             </div>
           ) : (
             <>
-              {view === 'dashboard' && <DashboardOverview profile={profile} onToggleAvailability={handleToggleAvailability} />}
-              {view === 'profile' && <ProfileView profile={profile} onUpdate={fetchProfile} />}
+              {view === 'dashboard' && <DashboardOverview profile={profile} dashboardStats={dashboardStats} onToggleAvailability={handleToggleAvailability} />}
+              {view === 'profile' && <ProfileView profile={profile} onUpdate={fetchData} />}
               {view === 'settings' && (
                 <div className="animate-in">
                   <h1 className="page-title">Settings</h1>

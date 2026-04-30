@@ -50,3 +50,16 @@ export const updateDonorProfile = async (profileData) => {
     throw error;
   }
 };
+
+/**
+ * Fetches computed dashboard stats (eligibility, next donation date, etc.)
+ */
+export const getDonorDashboard = async () => {
+  try {
+    const response = await api.get("donor/dashboard/");
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching donor dashboard:", error);
+    throw error;
+  }
+};
