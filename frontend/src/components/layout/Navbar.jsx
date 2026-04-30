@@ -80,6 +80,24 @@ const Navbar = () => {
 
     const isHomePage = location.pathname === '/';
 
+    // ─── Get current page name for mobile menu ───
+    const getCurrentPageName = () => {
+        const publicMatch = PUBLIC_NAV_ITEMS.find(item => item.path === location.pathname);
+        if (publicMatch) return publicMatch.label;
+        
+        if (isAuthenticated && roleNavItems) {
+            const roleMatch = roleNavItems.find(item => item.path === location.pathname);
+            if (roleMatch) return roleMatch.label;
+        }
+        
+        // Fallbacks for nested routes
+        if (location.pathname.includes('/dashboard')) return 'Dashboard';
+        if (location.pathname.includes('/profile')) return 'Profile';
+        if (location.pathname === '/') return 'Home';
+        return '';
+    };
+    const currentPageName = getCurrentPageName();
+
     return (
         <>
             {/* ==================== MAIN NAVIGATION ==================== */}
@@ -175,10 +193,17 @@ const Navbar = () => {
                         <img src={LOGOS.icon} alt="HOPEDROP Logo" className="nav-logo-img" />
                         <span className="logo-text">HOPEDROP</span>
                     </Link>
-                    <button className="sidebar-close-btn" onClick={closeMenu}>
+                    <button className="sidebar-close-btn" onClick={closeMenu} aria-label="Close Menu">
                         &times;
                     </button>
                 </div>
+
+                {currentPageName && (
+                    <div className="sidebar-current-page">
+                        <span className="current-label">You are here:</span>
+                        <div className="current-page-name">{currentPageName}</div>
+                    </div>
+                )}
 
                 <div className="sidebar-content">
                     {/* Public links */}

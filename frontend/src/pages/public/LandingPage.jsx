@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom';
 import { Heart, Activity, MapPin, Search, PhoneCall, ArrowRight, Shield, Clock, ChevronDown } from 'lucide-react';
 import './LandingPage.css';
 import { LANDING } from '../../config/imageAssets';
-import { PHOTOS } from '../../config/imageAssets';
+
+import video1 from '../../assets/backgroundvideos/video01.mp4';
+import video2 from '../../assets/backgroundvideos/video02.mp4';
 
 const LandingPage = () => {
 const DEFAULT_STOCK = {
@@ -78,34 +80,28 @@ useEffect(() => {
 
         return () => observer.disconnect();
     }, []);
-    const [currentImageIndex, setCurrentImageIndex] = useState(0);
-    
-    const heroImages = [
-        PHOTOS.photo1,
-        PHOTOS.photo2,
-        PHOTOS.photo3,
-        PHOTOS.photo4,
-        PHOTOS.photo5,
-        PHOTOS.photo6,
-    ];
 
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setCurrentImageIndex((prev) => (prev + 1) % heroImages.length);
-        }, 10000);
-        
-        return () => clearInterval(interval);
-    }, []);
+    const backgroundVideos = [video1, video2];
+    const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+
+    const handleVideoEnded = () => {
+        setCurrentVideoIndex((prevIndex) => (prevIndex + 1) % backgroundVideos.length);
+    };
+
     return (
         <div className="landing-page-new">
             {/* Hero Section */}
-            <section 
-                className="hero-section-new"
-                style={{
-                    backgroundImage: `linear-gradient(rgba(18, 25, 33, 0.8), rgba(18, 25, 33, 0.8)), url(${heroImages[currentImageIndex]})`,
-                    transition: 'background-image 1s ease-in-out'
-                }}
-            >
+            <section className="hero-section-new">
+                <div className="hero-overlay"></div>
+                <video 
+                    key={currentVideoIndex}
+                    autoPlay 
+                    muted 
+                    playsInline 
+                    className="hero-video"
+                    src={backgroundVideos[currentVideoIndex]}
+                    onEnded={handleVideoEnded}
+                />
                 <div className="hero-container">
                     <div className="hero-content animate-on-scroll">
                         <div className="hero-badge-new">

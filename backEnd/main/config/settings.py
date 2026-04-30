@@ -24,7 +24,7 @@ AUTH_USER_MODEL = "UserAuth.User"
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-MY_SECRET_KEY = "django-insecure-)t-yh@f0)nru3%wo$s2dh9l2t_+npo8dq8rxn14a^d!hu-@$$8"
+SECRET_KEY = "django-insecure-)t-yh@f0)nru3%wo$s2dh9l2t_+npo8dq8rxn14a^d!hu-@$$8"
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
