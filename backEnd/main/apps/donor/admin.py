@@ -2,12 +2,9 @@ from django.contrib import admin
 
 from .models.donorDetails import DonorDetails
 from .models.donorAlert import DonorAlert
-<<<<<<< HEAD
-=======
 from .models.donationHistory import DonationHistory
 from .models.bloodCamp import BloodCamp
 from .models.campRegistration import CampRegistration
->>>>>>> 33d958e (enhanced donircamphistory model and add alrt feature)
 
 
 @admin.register(DonorDetails)
@@ -22,8 +19,6 @@ class DonorAlertAdmin(admin.ModelAdmin):
     list_display = ("donor", "alert_type", "is_read", "created_at")
     list_filter = ("alert_type", "is_read")
     search_fields = ("message",)
-<<<<<<< HEAD
-=======
 
 
 @admin.register(DonationHistory)
@@ -47,5 +42,3 @@ class CampRegistrationAdmin(admin.ModelAdmin):
     list_display = ("donor", "camp", "status", "appointment_time", "created_at")
     list_filter = ("status", "camp")
     search_fields = ("donor__user__username", "camp__title")
-
->>>>>>> 33d958e (enhanced donircamphistory model and add alrt feature)

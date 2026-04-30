@@ -63,8 +63,6 @@ export const getDonorDashboard = async () => {
     throw error;
   }
 };
-<<<<<<< HEAD
-=======
 
 /**
  * Fetches paginated donation history for the logged-in donor.
@@ -79,4 +77,3 @@ export const getDonorDonations = async (params = {}) => {
     throw error;
   }
 };
->>>>>>> 33d958e (enhanced donircamphistory model and add alrt feature)

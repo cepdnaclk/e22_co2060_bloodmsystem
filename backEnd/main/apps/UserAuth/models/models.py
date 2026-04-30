@@ -20,12 +20,14 @@ class User(AbstractUser):
     DOCTOR = "doctor"
     ADMIN = "admin"
     INVENTORY_OFFICER = "Inventor"
+    BLOODCAMP = "bloodcamp"
 
     ROLE_CHOICES = [
         (DONOR, "donor"),
         (DOCTOR, "Doctor"),
         (ADMIN, "Admin"),
-        (INVENTORY_OFFICER, "Inventor")
+        (INVENTORY_OFFICER, "Inventor"),
+        (BLOODCAMP, "Blood Camp Organizer")
     ]
 
     username = models.CharField(max_length=10, unique=True)

@@ -4,9 +4,6 @@ from django.urls import path
 from ..services.donorService import DonorProfileView
 from ..services.donorDashboardService import DonorDashboardView
 from ..services.donorAlertService import DonorAlertListView, DonorAlertMarkReadView
-<<<<<<< HEAD
-from ..services.public.donorQrService import PublicDonorByQrView
-=======
 from ..services.donationHistoryService import DonorDonationHistoryView
 from ..services.public.donorQrService import PublicDonorByQrView
 from ..services.bloodCampService import (
@@ -16,16 +13,10 @@ from ..services.bloodCampService import (
     CampRegistrationsView,
     ApproveCampRegistrationView
 )
->>>>>>> 33d958e (enhanced donircamphistory model and add alrt feature)
 
 urlpatterns = [
     path('profile/', DonorProfileView.as_view(), name='donor-profile-dashboard'),
     path('dashboard/', DonorDashboardView.as_view(), name='donor-dashboard-stats'),
-<<<<<<< HEAD
-    path('alerts/', DonorAlertListView.as_view(), name='donor-alerts-list'),
-    path('alerts/<int:pk>/read/', DonorAlertMarkReadView.as_view(), name='donor-alert-mark-read'),
-    path("public/<uuid:qr_id>/", PublicDonorByQrView.as_view(), name="public-donor-by-qr"),
-=======
     path('donations/', DonorDonationHistoryView.as_view(), name='donor-donation-history'),
     path('alerts/', DonorAlertListView.as_view(), name='donor-alerts-list'),
     path('alerts/<int:pk>/read/', DonorAlertMarkReadView.as_view(), name='donor-alert-mark-read'),
@@ -37,5 +28,4 @@ urlpatterns = [
     path('camps/<int:pk>/register/', RegisterForCampView.as_view(), name='register-camp'),
     path('camps/<int:pk>/registrations/', CampRegistrationsView.as_view(), name='camp-registrations'),
     path('camps/registrations/<int:pk>/approve/', ApproveCampRegistrationView.as_view(), name='approve-camp-registration'),
->>>>>>> 33d958e (enhanced donircamphistory model and add alrt feature)
 ]
