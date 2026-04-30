@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getOrganizerCamps, createBloodCamp, getCampRegistrations, approveCampRegistration } from '../../services/campService';
-import { LayoutDashboard, Users, Calendar, MapPin, Clock, Plus, CheckCircle, LogOut } from 'lucide-react';
+import { getOrganizerCamps, createBloodCamp, getCampRegistrations, approveCampRegistration, completeCampRegistration } from '../../services/campService';
+import { LayoutDashboard, Users, Calendar, MapPin, Clock, Plus, CheckCircle, LogOut, User, Activity } from 'lucide-react';
 import { useAuth } from '../../context/auth/useAuth';
 import Swal from 'sweetalert2';
 import './CampDashboard.css';
@@ -28,9 +28,29 @@ const CampDashboard = () => {
     }
   };
 
+  const loadRegistrations = async (campId) => {
+      try {
+          const data = await getCampRegistrations(campId);
+          setRegistrations(data);
+      } catch (err) {
+          console.error("Error loading registrations:", err);
+      }
+  };
+
   useEffect(() => {
     loadCamps();
-  }, []);
+    
+    // Live update polling
+    const intervalId = setInterval(() => {
+        loadCamps();
+        // Also poll registrations if a camp is currently selected
+        if (selectedCamp) {
+            loadRegistrations(selectedCamp.id);
+        }
+    }, 10000); // 10 seconds
+
+    return () => clearInterval(intervalId);
+  }, [selectedCamp]);
 
   const handleCreateCamp = async (e) => {
     e.preventDefault();
@@ -46,13 +66,8 @@ const CampDashboard = () => {
   };
 
   const handleViewRegistrations = async (camp) => {
-    try {
-      const data = await getCampRegistrations(camp.id);
-      setRegistrations(data);
-      setSelectedCamp(camp);
-    } catch (err) {
-      console.error("Error loading registrations:", err);
-    }
+    setSelectedCamp(camp);
+    await loadRegistrations(camp.id);
   };
 
   const handleApprove = async (reg) => {
@@ -68,11 +83,32 @@ const CampDashboard = () => {
       try {
         await approveCampRegistration(reg.id, time);
         Swal.fire('Approved!', 'Donor has been notified.', 'success');
-        handleViewRegistrations(selectedCamp); // refresh
+        loadRegistrations(selectedCamp.id); // refresh
       } catch (err) {
         Swal.fire('Error', 'Approval failed.', 'error');
       }
     }
+  };
+
+  const handleCompleteDonation = async (reg) => {
+      try {
+          const result = await Swal.fire({
+              title: 'Mark as Donated?',
+              text: `Confirm that ${reg.donor_name} has successfully donated blood.`,
+              icon: 'question',
+              showCancelButton: true,
+              confirmButtonText: 'Yes, Complete',
+              confirmButtonColor: '#10b981'
+          });
+
+          if (result.isConfirmed) {
+              await completeCampRegistration(reg.id);
+              Swal.fire('Completed!', 'Donation recorded successfully.', 'success');
+              loadRegistrations(selectedCamp.id); // refresh
+          }
+      } catch (err) {
+          Swal.fire('Error', 'Failed to mark as complete.', 'error');
+      }
   };
 
   const handleLogout = () => {
@@ -98,6 +134,11 @@ const CampDashboard = () => {
                 <Plus size={20} /> Create Camp
               </button>
             </li>
+            <li>
+              <button onClick={() => { setView('profile'); setSelectedCamp(null); }} className={view === 'profile' ? 'active' : ''}>
+                <User size={20} /> My Profile
+              </button>
+            </li>
           </ul>
         </nav>
         <div className="sidebar-bottom">
@@ -110,6 +151,9 @@ const CampDashboard = () => {
       <main className="camp-main">
         <header className="camp-header">
           <h1>Welcome, {user?.username}</h1>
+          <div className="header-status">
+              <span className="live-badge"><Activity size={12} className="pulse-icon" /> Live Updates On</span>
+          </div>
         </header>
 
         <div className="camp-content">
@@ -171,7 +215,30 @@ const CampDashboard = () => {
             </div>
           )}
 
-          {selectedCamp && (
+          {view === 'profile' && (
+              <div className="camp-form-card animate-in">
+                  <h2>Organizer Profile</h2>
+                  <div className="profile-details">
+                      <div className="form-group">
+                          <label>Username</label>
+                          <input type="text" value={user?.username || ''} disabled className="form-input" />
+                      </div>
+                      <div className="form-group">
+                          <label>Email Address</label>
+                          <input type="email" value={user?.email || ''} disabled className="form-input" />
+                      </div>
+                      <div className="form-group">
+                          <label>Role</label>
+                          <input type="text" value={user?.role || ''} disabled className="form-input" style={{ textTransform: 'capitalize' }} />
+                      </div>
+                      <p style={{ marginTop: '1rem', color: '#6b7280', fontSize: '0.9rem' }}>
+                          Profile editing for organizers is managed by System Administrators.
+                      </p>
+                  </div>
+              </div>
+          )}
+
+          {selectedCamp && view === 'camps' && (
             <div className="registrations-view animate-in">
               <button className="back-btn" onClick={() => setSelectedCamp(null)}>← Back to Camps</button>
               <h2>Donor Requests for: {selectedCamp.title}</h2>
@@ -203,6 +270,11 @@ const CampDashboard = () => {
                           {reg.status === 'pending' && (
                             <button onClick={() => handleApprove(reg)} className="approve-btn">
                               <CheckCircle size={16} /> Approve
+                            </button>
+                          )}
+                          {reg.status === 'approved' && (
+                            <button onClick={() => handleCompleteDonation(reg)} className="approve-btn" style={{ background: '#10b981', color: 'white', borderColor: '#059669' }}>
+                              <CheckCircle size={16} /> Mark Donated
                             </button>
                           )}
                         </td>

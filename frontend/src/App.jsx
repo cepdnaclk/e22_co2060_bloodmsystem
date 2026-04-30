@@ -17,6 +17,7 @@ import DonorRegistration from './pages/donor/DonorRegistration';
 import DoctorDashboard from './pages/doctor/DoctorDashboard';
 import LabDashboard from './pages/staff/LabDashboard';
 import PatientDashboard from './pages/patient/PatientDashboard';
+import DonorNotifications from './pages/donor/DonorNotifications';
 import CampDashboard from './pages/bloodcamp/CampDashboard';
 import ContactPage from './pages/public/ContactPage';
 import Events from "./pages/events/Events";
@@ -54,6 +55,11 @@ function App() {
               <Route path="/donor" element={
                 <RoleRoute allowedRoles={['donor', 'admin']}>
                   <DonorDashboard />
+                </RoleRoute>
+              } />
+              <Route path="/donor/notifications" element={
+                <RoleRoute allowedRoles={['donor', 'admin']}>
+                  <DonorNotifications />
                 </RoleRoute>
               } />
               <Route path="/donor/eligibility" element={

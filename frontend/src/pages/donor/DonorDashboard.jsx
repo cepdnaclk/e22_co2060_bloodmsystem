@@ -7,6 +7,7 @@ import { getUpcomingCamps, registerForCamp } from '../../services/campService';
 import { QRCodeCanvas } from 'qrcode.react';
 import Swal from 'sweetalert2';
 import { Bell, MapPin, Search, Activity, CheckCircle, XCircle, X as XIcon, AlertTriangle, Info } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import './DonorDashboard.css';
 const DonorSideBar = ({ profile, currentView, setView, onUpdate, isMobileOpen, closeMobileMenu }) => {
   const navigate = useNavigate();
@@ -218,25 +219,6 @@ const DashboardOverview = ({ profile, dashboardStats, alerts, upcomingCamps, onR
   const isEligible = dashboardStats?.is_eligible ?? true;
   const isAvailable = dashboardStats?.is_available ?? profile?.is_available ?? true;
 
-  const alertIcon = (type) => {
-    switch (type) {
-      case 'urgent': return <AlertTriangle size={18} />;
-      case 'eligibility': return <CheckCircle size={18} />;
-      case 'camp': return <MapPin size={18} />;
-      default: return <Info size={18} />;
-    }
-  };
-
-  const alertClass = (type) => {
-    switch (type) {
-      case 'urgent': return 'alert-card urgent-alert';
-      case 'eligibility': return 'alert-card success-alert';
-      default: return 'alert-card info-alert';
-    }
-  };
-
-  const unreadCount = alerts?.filter(a => !a.is_read)?.length || 0;
-
   return (
     <div className="dashboard-v2 animate-in">
       <div className="welcome-banner">
@@ -244,32 +226,7 @@ const DashboardOverview = ({ profile, dashboardStats, alerts, upcomingCamps, onR
           <h1 className="page-title" style={{ marginBottom: '4px' }}>Hi, {profile?.fullName?.split(' ')[0] || 'Donor'}!</h1>
           <p className="page-subtitle">Your quick donation dashboard.</p>
         </div>
-        {unreadCount > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#fef2f2', padding: '6px 14px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600, color: '#b91c1c' }}>
-            <Bell size={16} /> {unreadCount} unread
-          </div>
-        )}
       </div>
-
-      {alerts && alerts.length > 0 && (
-        <div className="alerts-section">
-          {alerts.filter(a => !a.is_read).map(a => (
-            <div key={a.id} className={alertClass(a.alert_type)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                {alertIcon(a.alert_type)}
-                <span>{a.message}</span>
-              </div>
-              <button
-                onClick={() => onDismissAlert(a.id)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', borderRadius: '50%', display: 'flex', color: 'inherit', opacity: 0.6 }}
-                title="Dismiss"
-              >
-                <XIcon size={16} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* 1. Top Section - Summary Cards */}
       <div className="stats-grid grid-responsive-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
@@ -591,14 +548,8 @@ const DonorDashboard = () => {
     }
   };
 
-  const handleDismissAlert = async (alertId) => {
-    try {
-      await markAlertRead(alertId);
-      setAlerts(alerts.filter(a => a.id !== alertId));
-    } catch (err) {
-      console.error("Failed to dismiss alert", err);
-    }
-  };
+  // Extract unread alerts count
+  const unreadCount = alerts?.filter(a => !a.is_read)?.length || 0;
 
   const handleToggleAvailability = async () => {
     if (!profile || !dashboardStats?.is_eligible) return;
@@ -660,6 +611,13 @@ const DonorDashboard = () => {
 
   useEffect(() => {
     fetchData();
+
+    // Live update polling for dashboard data
+    const intervalId = setInterval(() => {
+      fetchData();
+    }, 10000); // 10 seconds
+
+    return () => clearInterval(intervalId);
   }, []);
 
   // Fetch donations when switching to history tab
@@ -679,13 +637,22 @@ const DonorDashboard = () => {
         closeMobileMenu={() => setIsMobileMenuOpen(false)}
       />
       <main className="donor-main">
-        <div className="mobile-header">
+        <div className="mobile-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px', background: 'white', borderBottom: '1px solid #e5e7eb' }}>
           <div className="mobile-brand">
-
+             <button className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#374151' }}>
+               <Menu size={24} />
+             </button>
           </div>
-          <button className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)}>
-            <Menu size={24} />
-          </button>
+          <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+             <Link to="/donor/notifications" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f3f4f6', padding: '8px', borderRadius: '50%', color: '#374151', textDecoration: 'none' }}>
+               <Bell size={20} />
+               {unreadCount > 0 && (
+                 <span style={{ position: 'absolute', top: '-2px', right: '-2px', background: '#ef4444', color: 'white', fontSize: '0.65rem', fontWeight: 'bold', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}>
+                   {unreadCount}
+                 </span>
+               )}
+             </Link>
+          </div>
         </div>
         <div className="donor-content-area">
           {loading ? (
@@ -694,7 +661,7 @@ const DonorDashboard = () => {
             </div>
           ) : (
             <>
-              {view === 'dashboard' && <DashboardOverview profile={profile} dashboardStats={dashboardStats} alerts={alerts} upcomingCamps={upcomingCamps} onRegisterCamp={handleRegisterCamp} onToggleAvailability={handleToggleAvailability} onDismissAlert={handleDismissAlert} />}
+              {view === 'dashboard' && <DashboardOverview profile={profile} dashboardStats={dashboardStats} alerts={alerts} upcomingCamps={upcomingCamps} onRegisterCamp={handleRegisterCamp} onToggleAvailability={handleToggleAvailability} />}
               {view === 'history' && (
                 <HistoryView
                   donations={donations}

@@ -11,7 +11,8 @@ from ..services.bloodCampService import (
     OrganizerBloodCampView,
     RegisterForCampView,
     CampRegistrationsView,
-    ApproveCampRegistrationView
+    ApproveCampRegistrationView,
+    CompleteCampRegistrationView
 )
 
 urlpatterns = [
@@ -28,4 +29,5 @@ urlpatterns = [
     path('camps/<int:pk>/register/', RegisterForCampView.as_view(), name='register-camp'),
     path('camps/<int:pk>/registrations/', CampRegistrationsView.as_view(), name='camp-registrations'),
     path('camps/registrations/<int:pk>/approve/', ApproveCampRegistrationView.as_view(), name='approve-camp-registration'),
+    path('camps/registrations/<int:pk>/complete/', CompleteCampRegistrationView.as_view(), name='complete-camp-registration'),
 ]

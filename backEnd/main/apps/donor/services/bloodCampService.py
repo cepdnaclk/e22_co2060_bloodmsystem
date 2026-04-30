@@ -6,10 +6,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from django.utils import timezone
 from ..models.bloodCamp import BloodCamp
 from ..models.campRegistration import CampRegistration
 from ..models.donorDetails import DonorDetails
 from ..models.donorAlert import DonorAlert
+from ..models.donationHistory import DonationHistory
 from ..serializers.bloodCampSerializer import BloodCampSerializer, CampRegistrationSerializer
 
 
@@ -121,3 +123,49 @@ class ApproveCampRegistrationView(APIView):
         )
 
         return Response({"detail": "Registration approved and donor notified."})
+
+class CompleteCampRegistrationView(APIView):
+    """
+    POST /api/v1/camps/registrations/<id>/complete/
+    Allows Camp Organizers to mark a donor as having successfully donated.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        if request.user.role != "bloodcamp":
+            raise PermissionDenied("Only Camp Organizers can complete registrations.")
+
+        registration = get_object_or_404(CampRegistration, pk=pk, camp__organizer=request.user)
+
+        if registration.status != "approved":
+            return Response({"detail": "Only approved registrations can be marked as completed."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Mark registration as completed
+        registration.status = "completed"
+        registration.save()
+
+        # Update Donor Details
+        donor = registration.donor
+        donor.total_donations += 1
+        donor.last_donation_date = timezone.now().date()
+        donor.save()
+
+        # Create Donation History record
+        DonationHistory.objects.create(
+            donor=donor,
+            hospital_name=registration.camp.title,  # Store camp name in hospital_name for history
+            blood_group=getattr(donor.user, 'blood_group', getattr(getattr(donor.user, 'profile', None), 'blood_group', 'Unknown')) or 'Unknown',
+            units=1,  # Standard 1 unit
+            status="completed",
+            donation_date=timezone.now().date(),
+            notes=f"Donated at {registration.camp.title} ({registration.camp.location})"
+        )
+
+        # Notify donor
+        DonorAlert.objects.create(
+            donor=donor,
+            message=f"Thank you for donating blood at {registration.camp.title}! Your contribution saves lives.",
+            alert_type="eligibility" # Re-using eligibility for positive alerts
+        )
+
+        return Response({"detail": "Registration marked as completed. Donor details updated."})

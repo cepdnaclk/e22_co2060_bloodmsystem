@@ -32,3 +32,8 @@ export const approveCampRegistration = async (registrationId, appointmentTime) =
   });
   return response.data;
 };
+
+export const completeCampRegistration = async (registrationId) => {
+  const response = await api.post(`donor/camps/registrations/${registrationId}/complete/`);
+  return response.data;
+};
