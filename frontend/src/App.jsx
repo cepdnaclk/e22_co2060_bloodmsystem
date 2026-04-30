@@ -17,6 +17,7 @@ import DonorRegistration from './pages/donor/DonorRegistration';
 import DoctorDashboard from './pages/doctor/DoctorDashboard';
 import LabDashboard from './pages/staff/LabDashboard';
 import PatientDashboard from './pages/patient/PatientDashboard';
+import CampDashboard from './pages/bloodcamp/CampDashboard';
 import ContactPage from './pages/public/ContactPage';
 import Events from "./pages/events/Events";
 import AboutUs from "./pages/public/AboutUs";
@@ -85,6 +86,12 @@ function App() {
               } />
             </Route>
 
+            {/* Blood Camp Organizer Route - No Main Layout as they have their own dashboard */}
+            <Route path="/bloodcamp" element={
+              <RoleRoute allowedRoles={['bloodcamp', 'admin']}>
+                <CampDashboard />
+              </RoleRoute>
+            } />
             {/* Admin Routes */}
             <Route path="/admin" element={<RoleRoute allowedRoles={['admin']}><AdminLayout /></RoleRoute>}>
               <Route index element={<AdminDashboard />} />

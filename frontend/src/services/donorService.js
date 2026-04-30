@@ -63,3 +63,20 @@ export const getDonorDashboard = async () => {
     throw error;
   }
 };
+<<<<<<< HEAD
+=======
+
+/**
+ * Fetches paginated donation history for the logged-in donor.
+ * @param {Object} params - { status, year, page, page_size }
+ */
+export const getDonorDonations = async (params = {}) => {
+  try {
+    const response = await api.get("donor/donations/", { params });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching donation history:", error);
+    throw error;
+  }
+};
+>>>>>>> 33d958e (enhanced donircamphistory model and add alrt feature)

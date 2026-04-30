@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { LayoutDashboard, User, Settings, LogOut, Droplets, History, Calendar, Phone, Hospital, IdCard, Edit2, Camera, QrCode, Menu, X as CloseIcon } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { LayoutDashboard, User, Settings, LogOut, Droplets, History, Calendar, Phone, Hospital, IdCard, Edit2, Camera, QrCode, Menu, X as CloseIcon, Clock, FileText, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getDonorProfile, updateDonorProfile, getDonorDashboard } from '../../services/donorService';
+import { getDonorProfile, updateDonorProfile, getDonorDashboard, getDonorDonations } from '../../services/donorService';
 import { getDonorAlerts, markAlertRead } from '../../services/alertService';
+import { getUpcomingCamps, registerForCamp } from '../../services/campService';
 import { QRCodeCanvas } from 'qrcode.react';
 import Swal from 'sweetalert2';
 import { Bell, MapPin, Search, Activity, CheckCircle, XCircle, X as XIcon, AlertTriangle, Info } from 'lucide-react';
@@ -44,7 +45,7 @@ const DonorSideBar = ({ profile, currentView, setView, onUpdate, isMobileOpen, c
       <div className={`donor-sidebar-overlay ${isMobileOpen ? 'active' : ''}`} onClick={closeMobileMenu}></div>
       <aside className={`donor-sidebar ${isMobileOpen ? 'mobile-open' : ''}`}>
 
-          <button className="mobile-close-btn" type="button" onClick={closeMobileMenu}><CloseIcon size={20}/></button>
+        <button className="mobile-close-btn" type="button" onClick={closeMobileMenu}><CloseIcon size={20} /></button>
 
         <div className="sidebar-profile">
           <div className="profile-avatar-container sidebar-pic-wrapper">
@@ -68,6 +69,11 @@ const DonorSideBar = ({ profile, currentView, setView, onUpdate, isMobileOpen, c
             <li className="nav-item">
               <button onClick={() => navClick('dashboard')} className={`nav-button ${currentView === 'dashboard' ? 'active' : ''}`}>
                 <LayoutDashboard size={20} /> Dashboard
+              </button>
+            </li>
+            <li className="nav-item">
+              <button onClick={() => navClick('history')} className={`nav-button ${currentView === 'history' ? 'active' : ''}`}>
+                <Clock size={20} /> History
               </button>
             </li>
             <li className="nav-item">
@@ -170,7 +176,7 @@ const ProfileView = ({ profile, onUpdate }) => {
         <div className="stat-card">
           <label className="stat-label"><Phone size={14} /> Phone Number</label>
           {isEditing ? (
-            <input className="form-input" value={editData.phoneNumber} onChange={(e) => setEditData({...editData, phoneNumber: e.target.value})} />
+            <input className="form-input" value={editData.phoneNumber} onChange={(e) => setEditData({ ...editData, phoneNumber: e.target.value })} />
           ) : (
             <p className="stat-value">{profile?.phoneNumber || 'Not Provided'}</p>
           )}
@@ -178,7 +184,7 @@ const ProfileView = ({ profile, onUpdate }) => {
         <div className="stat-card">
           <label className="stat-label"><Hospital size={14} /> Nearest Hospital</label>
           {isEditing ? (
-            <input className="form-input" value={editData.hospital} onChange={(e) => setEditData({...editData, hospital: e.target.value})} />
+            <input className="form-input" value={editData.hospital} onChange={(e) => setEditData({ ...editData, hospital: e.target.value })} />
           ) : (
             <p className="stat-value">{profile?.hospital || 'Not Provided'}</p>
           )}
@@ -195,7 +201,7 @@ const ProfileView = ({ profile, onUpdate }) => {
               {profile?.profile_image ? (
                 <img src={profile.profile_image} alt="Profile" className="image-preview view-only" />
               ) : (
-                <p className="stat-value text-muted" style={{ color: '#6b7280', fontSize:'0.9rem', marginTop:'8px' }}>No image set</p>
+                <p className="stat-value text-muted" style={{ color: '#6b7280', fontSize: '0.9rem', marginTop: '8px' }}>No image set</p>
               )}
             </div>
           )}
@@ -204,19 +210,13 @@ const ProfileView = ({ profile, onUpdate }) => {
     </div>
   );
 };
-const DashboardOverview = ({ profile, dashboardStats, alerts, onDismissAlert, onToggleAvailability }) => {
+const DashboardOverview = ({ profile, dashboardStats, alerts, upcomingCamps, onRegisterCamp, onDismissAlert, onToggleAvailability }) => {
   // Use real server-computed data from /donor/dashboard/ API
   const nextEligible = dashboardStats?.next_eligible
     ? new Date(dashboardStats.next_eligible).toLocaleDateString()
     : 'Eligible Now';
   const isEligible = dashboardStats?.is_eligible ?? true;
   const isAvailable = dashboardStats?.is_available ?? profile?.is_available ?? true;
-
-  // Mock nearby activity (to be replaced by API in Phase 5)
-  const nearbyRequests = [
-    { id: 1, title: 'Urgent: O+ Blood Needed', location: 'City Hospital (2km)', urgency: '🔴 Urgent' },
-    { id: 2, title: 'Blood Camp: Summer Drive', location: 'Town Hall (5km)', urgency: '🟢 Normal' }
-  ];
 
   const alertIcon = (type) => {
     switch (type) {
@@ -280,13 +280,13 @@ const DashboardOverview = ({ profile, dashboardStats, alerts, onDismissAlert, on
             <h2 className="stat-value" style={{ margin: 0, fontSize: '1.8rem' }}>{profile?.blood_group || '--'}</h2>
           </div>
         </div>
-        
+
         <div className="stat-card">
           <p className="stat-label">Last Donation</p>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
             <History size={24} className="icon-blue" />
             <h3 className="stat-value" style={{ margin: 0, fontSize: '1.2rem' }}>
-               {profile?.last_donation ? new Date(profile.last_donation).toLocaleDateString() : 'N/A'}
+              {profile?.last_donation ? new Date(profile.last_donation).toLocaleDateString() : 'N/A'}
             </h3>
           </div>
         </div>
@@ -320,8 +320,8 @@ const DashboardOverview = ({ profile, dashboardStats, alerts, onDismissAlert, on
       {/* 2. Middle Section - Main Actions */}
       <h3 className="section-heading" style={{ marginTop: '2rem', marginBottom: '1rem', fontSize: '1.2rem' }}>Quick Actions</h3>
       <div className="main-actions-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
-        <button 
-          className="action-btn toggle-status-btn" 
+        <button
+          className="action-btn toggle-status-btn"
           onClick={isEligible ? onToggleAvailability : null}
           disabled={!isEligible}
           style={{ padding: '1rem', borderRadius: '12px', border: '1px solid #e5e7eb', background: !isEligible ? '#f3f4f6' : isAvailable ? '#fee2e2' : '#dcfce7', cursor: isEligible ? 'pointer' : 'not-allowed', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', transition: 'all 0.2s', opacity: isEligible ? 1 : 0.6 }}
@@ -344,32 +344,44 @@ const DashboardOverview = ({ profile, dashboardStats, alerts, onDismissAlert, on
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginTop: '2rem' }}>
-        {/* 3. Nearby Activity */}
+        {/* 3. Upcoming Camps */}
         <div className="nearby-section">
-           <h3 className="section-heading" style={{ marginBottom: '1rem', fontSize: '1.2rem' }}>Nearby Activity</h3>
-           <div className="nearby-list">
-             {nearbyRequests.map(item => (
-               <div key={item.id} className="nearby-card" style={{ padding: '1rem', background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                 <div>
-                   <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', color: '#111827' }}>{item.title}</h4>
-                   <p style={{ margin: 0, fontSize: '0.85rem', color: '#6b7280' }}><MapPin size={12} style={{ display: 'inline', marginRight: '4px' }}/>{item.location}</p>
-                 </div>
-                 <div style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600, background: item.urgency.includes('Urgent') ? '#fee2e2' : '#dcfce7', color: item.urgency.includes('Urgent') ? '#b91c1c' : '#15803d' }}>
-                   {item.urgency}
-                 </div>
-               </div>
-             ))}
-           </div>
+          <h3 className="section-heading" style={{ marginBottom: '1rem', fontSize: '1.2rem' }}>Upcoming Blood Camps</h3>
+          <div className="nearby-list">
+            {upcomingCamps && upcomingCamps.length > 0 ? (
+              upcomingCamps.map(camp => (
+                <div key={camp.id} className="nearby-card" style={{ padding: '1rem', background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', color: '#111827' }}>{camp.title}</h4>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#6b7280' }}>
+                      <MapPin size={12} style={{ display: 'inline', marginRight: '4px' }} />{camp.location}
+                    </p>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: '#6b7280' }}>
+                      <Calendar size={12} style={{ display: 'inline', marginRight: '4px' }} />{camp.date} ({camp.start_time})
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => onRegisterCamp(camp.id)}
+                    style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 600, background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', cursor: 'pointer' }}
+                  >
+                    Register
+                  </button>
+                </div>
+              ))
+            ) : (
+              <p style={{ color: '#6b7280', fontSize: '0.9rem' }}>No upcoming camps found.</p>
+            )}
+          </div>
         </div>
 
         {/* 4. QR Code & Stats */}
         <div className="qr-section stat-card centered-card" style={{ margin: 0 }}>
           <div className="qr-header">
-            <QrCode size={24} /> <h2 style={{ fontSize: '1.2rem'}}>Your Donor QR Code</h2>
+            <QrCode size={24} /> <h2 style={{ fontSize: '1.2rem' }}>Your Donor QR Code</h2>
           </div>
           <div className="qr-box">
             {profile?.qr_id ? (
-              <QRCodeCanvas 
+              <QRCodeCanvas
                 value={`${window.location.origin}/donor/scan/${profile.qr_id}`} size={160} level={"H"} includeMargin={true}
                 imageSettings={{ src: "/favicon.svg", height: 40, width: 40, excavate: true }}
               />
@@ -378,37 +390,213 @@ const DashboardOverview = ({ profile, dashboardStats, alerts, onDismissAlert, on
             )}
           </div>
           <div className="qr-id-tag">ID: {profile?.qr_id || 'Generating...'}</div>
-          
+
           <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e5e7eb', width: '100%' }}>
-             <p className="stat-label" style={{ marginBottom: '8px' }}>Total Contributions</p>
-             <h3 className="stat-value">{profile?.donations || '0'} Donations</h3>
+            <p className="stat-label" style={{ marginBottom: '8px' }}>Total Contributions</p>
+            <h3 className="stat-value">{profile?.donations || '0'} Donations</h3>
           </div>
         </div>
       </div>
     </div>
   );
 };
+
+const StatusBadge = ({ status }) => {
+  const config = {
+    completed: { bg: '#dcfce7', color: '#15803d', label: 'Completed' },
+    pending: { bg: '#fef9c3', color: '#a16207', label: 'Pending' },
+    cancelled: { bg: '#fee2e2', color: '#b91c1c', label: 'Cancelled' },
+  };
+  const s = config[status] || config.completed;
+  return (
+    <span className="history-status-badge" style={{ background: s.bg, color: s.color }}>
+      {s.label}
+    </span>
+  );
+};
+
+const HistoryView = ({ donations, donationsLoading, donationsMeta, onPageChange, onFilterChange, currentFilter }) => {
+  const results = donations || [];
+  const hasNext = !!donationsMeta?.next;
+  const hasPrev = !!donationsMeta?.previous;
+  const totalCount = donationsMeta?.count || 0;
+  const currentPage = donationsMeta?.currentPage || 1;
+  const totalPages = Math.ceil(totalCount / 10) || 1;
+
+  return (
+    <div className="history-view animate-in">
+      <div className="history-header">
+        <div>
+          <h1 className="page-title" style={{ marginBottom: '4px' }}>Donation History</h1>
+          <p className="page-subtitle" style={{ fontSize: '0.95rem', fontWeight: 400, color: '#6b7280' }}>
+            {totalCount} total donation{totalCount !== 1 ? 's' : ''} on record
+          </p>
+        </div>
+        <div className="history-filter-group">
+          <Filter size={16} style={{ color: '#6b7280' }} />
+          <select
+            className="history-filter-select"
+            value={currentFilter}
+            onChange={(e) => onFilterChange(e.target.value)}
+          >
+            <option value="">All Status</option>
+            <option value="completed">Completed</option>
+            <option value="pending">Pending</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+      </div>
+
+      {donationsLoading ? (
+        <div className="loader-container centered">
+          <div className="spinner"></div>
+        </div>
+      ) : results.length === 0 ? (
+        <div className="history-empty-state">
+          <div className="history-empty-icon">
+            <FileText size={48} strokeWidth={1.5} />
+          </div>
+          <h3>No Donations Yet</h3>
+          <p>Your donation history will appear here after your first blood donation.</p>
+        </div>
+      ) : (
+        <>
+          {/* Mobile card view */}
+          <div className="history-cards-mobile">
+            {results.map((d) => (
+              <div key={d.id} className="history-card">
+                <div className="history-card-top">
+                  <div className="history-card-date">
+                    <Calendar size={14} />
+                    {new Date(d.donation_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </div>
+                  <StatusBadge status={d.status} />
+                </div>
+                <div className="history-card-body">
+                  <div className="history-card-row">
+                    <span className="history-card-label">Hospital</span>
+                    <span className="history-card-value">{d.hospital_display || d.hospital_name}</span>
+                  </div>
+                  <div className="history-card-row">
+                    <span className="history-card-label">Blood Group</span>
+                    <span className="history-card-value history-blood-tag">{d.blood_group}</span>
+                  </div>
+                  <div className="history-card-row">
+                    <span className="history-card-label">Units</span>
+                    <span className="history-card-value">{d.units}</span>
+                  </div>
+                  {d.notes && (
+                    <div className="history-card-row">
+                      <span className="history-card-label">Notes</span>
+                      <span className="history-card-value" style={{ fontSize: '0.85rem', color: '#6b7280' }}>{d.notes}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table view */}
+          <div className="history-table-wrapper">
+            <table className="history-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Hospital</th>
+                  <th>Blood Group</th>
+                  <th>Units</th>
+                  <th>Status</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {results.map((d) => (
+                  <tr key={d.id}>
+                    <td className="history-date-cell">
+                      <Calendar size={14} className="icon-muted" />
+                      {new Date(d.donation_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </td>
+                    <td>{d.hospital_display || d.hospital_name}</td>
+                    <td><span className="history-blood-tag">{d.blood_group}</span></td>
+                    <td>{d.units}</td>
+                    <td><StatusBadge status={d.status} /></td>
+                    <td className="history-notes-cell">{d.notes || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {totalCount > 10 && (
+            <div className="history-pagination">
+              <button
+                className="history-page-btn"
+                disabled={!hasPrev}
+                onClick={() => onPageChange(currentPage - 1)}
+              >
+                <ChevronLeft size={16} /> Prev
+              </button>
+              <span className="history-page-info">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                className="history-page-btn"
+                disabled={!hasNext}
+                onClick={() => onPageChange(currentPage + 1)}
+              >
+                Next <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
 const DonorDashboard = () => {
   const [profile, setProfile] = useState(null);
   const [dashboardStats, setDashboardStats] = useState(null);
+  const [upcomingCamps, setUpcomingCamps] = useState([]);
+  const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // History state
+  const [donations, setDonations] = useState([]);
+  const [donationsLoading, setDonationsLoading] = useState(false);
+  const [donationsMeta, setDonationsMeta] = useState({ next: null, previous: null, count: 0, currentPage: 1 });
+  const [historyFilter, setHistoryFilter] = useState('');
+
   const fetchData = async () => {
     try {
       setLoading(true);
-      // Fetch both profile and dashboard stats in parallel
-      const [profileData, statsData] = await Promise.all([
+      // Fetch profile, stats, alerts, and camps in parallel
+      const [profileData, statsData, alertsData, campsData] = await Promise.all([
         getDonorProfile(),
         getDonorDashboard(),
+        getDonorAlerts(),
+        getUpcomingCamps()
       ]);
       setProfile(profileData);
       setDashboardStats(statsData);
+      setAlerts(alertsData);
+      setUpcomingCamps(campsData.results || campsData); // Handle pagination if present
     } catch (err) {
       console.error("Fetch error", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDismissAlert = async (alertId) => {
+    try {
+      await markAlertRead(alertId);
+      setAlerts(alerts.filter(a => a.id !== alertId));
+    } catch (err) {
+      console.error("Failed to dismiss alert", err);
     }
   };
 
@@ -433,27 +621,71 @@ const DonorDashboard = () => {
     }
   };
 
+  const handleRegisterCamp = async (campId) => {
+    try {
+      await registerForCamp(campId);
+      Swal.fire('Registered!', 'Your request to donate has been sent.', 'success');
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to register';
+      Swal.fire('Error', msg, 'error');
+    }
+  };
+
+  const fetchDonations = useCallback(async (page = 1, status = historyFilter) => {
+    setDonationsLoading(true);
+    try {
+      const params = { page };
+      if (status) params.status = status;
+      const data = await getDonorDonations(params);
+      setDonations(data.results || []);
+      setDonationsMeta({
+        next: data.next,
+        previous: data.previous,
+        count: data.count || 0,
+        currentPage: page,
+      });
+    } catch (err) {
+      console.error('Error fetching donations:', err);
+      setDonations([]);
+    } finally {
+      setDonationsLoading(false);
+    }
+  }, [historyFilter]);
+
+  const handleHistoryPageChange = (page) => fetchDonations(page);
+  const handleHistoryFilterChange = (status) => {
+    setHistoryFilter(status);
+    fetchDonations(1, status);
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Fetch donations when switching to history tab
+  useEffect(() => {
+    if (view === 'history') {
+      fetchDonations(1, historyFilter);
+    }
+  }, [view]);
   return (
     <div className="donor-container flex-layout">
-      <DonorSideBar 
-        profile={profile} 
-        currentView={view} 
-        setView={setView} 
-        onUpdate={fetchData} 
+      <DonorSideBar
+        profile={profile}
+        currentView={view}
+        setView={setView}
+        onUpdate={fetchData}
         isMobileOpen={isMobileMenuOpen}
         closeMobileMenu={() => setIsMobileMenuOpen(false)}
       />
       <main className="donor-main">
         <div className="mobile-header">
-           <div className="mobile-brand">
+          <div className="mobile-brand">
 
-           </div>
-           <button className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)}>
-             <Menu size={24} />
-           </button>
+          </div>
+          <button className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)}>
+            <Menu size={24} />
+          </button>
         </div>
         <div className="donor-content-area">
           {loading ? (
@@ -462,7 +694,17 @@ const DonorDashboard = () => {
             </div>
           ) : (
             <>
-              {view === 'dashboard' && <DashboardOverview profile={profile} dashboardStats={dashboardStats} onToggleAvailability={handleToggleAvailability} />}
+              {view === 'dashboard' && <DashboardOverview profile={profile} dashboardStats={dashboardStats} alerts={alerts} upcomingCamps={upcomingCamps} onRegisterCamp={handleRegisterCamp} onToggleAvailability={handleToggleAvailability} onDismissAlert={handleDismissAlert} />}
+              {view === 'history' && (
+                <HistoryView
+                  donations={donations}
+                  donationsLoading={donationsLoading}
+                  donationsMeta={donationsMeta}
+                  onPageChange={handleHistoryPageChange}
+                  onFilterChange={handleHistoryFilterChange}
+                  currentFilter={historyFilter}
+                />
+              )}
               {view === 'profile' && <ProfileView profile={profile} onUpdate={fetchData} />}
               {view === 'settings' && (
                 <div className="animate-in">
