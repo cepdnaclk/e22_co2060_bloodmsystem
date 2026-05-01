@@ -16,23 +16,19 @@ nic_validator = RegexValidator(
 
 
 class User(AbstractUser):
-    DONOR = "donor"
+    PATIENT = "patient"
     DOCTOR = "doctor"
     ADMIN = "admin"
-    INVENTORY_OFFICER = "Inventor"
-    BLOODCAMP = "bloodcamp"
 
     ROLE_CHOICES = [
-        (DONOR, "donor"),
+        (PATIENT, "Patient"),
         (DOCTOR, "Doctor"),
         (ADMIN, "Admin"),
-        (INVENTORY_OFFICER, "Inventor"),
-        (BLOODCAMP, "Blood Camp Organizer")
     ]
 
     username = models.CharField(max_length=10, unique=True)
     email = models.EmailField(unique=True)
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default=DONOR)
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default=PATIENT)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username"]

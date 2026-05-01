@@ -1,31 +1,12 @@
 from django.db import IntegrityError, transaction
 from rest_framework import serializers
-
 from ...models import Profile, User
-
-
-class RegisterProfileSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Profile
-        fields = [
-            "fullName",
-            "nic_number",
-            "phoneNumber",
-            "blood_group",
-            "country",
-            "district",
-            "hospital",
-        ]
-        extra_kwargs = {
-            "country": {"required": False, "allow_null": True},
-            "district": {"required": False, "allow_null": True},
-            "hospital": {"required": False, "allow_null": True},
-        }
+from ..response.serializer import ProfileSerializer
 
 
 class RegisterSerializer(serializers.ModelSerializer):
-    # Use writable serializer for nested profile payload
-    profile = RegisterProfileSerializer()
+    # Nest the ProfileSerializer here
+    profile = ProfileSerializer()
     password = serializers.CharField(write_only=True)
     password2 = serializers.CharField(write_only=True)
 
@@ -37,7 +18,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         if data["password"] != data["password2"]:
             raise serializers.ValidationError("Passwords do not match.")
 
-        # Public signup must never create adminDashboard accounts.
+        # Public signup must never create admin accounts.
         if data.get("role") == User.ADMIN:
             raise serializers.ValidationError(
                 {"role": "Admin accounts can only be created by system administrators."}

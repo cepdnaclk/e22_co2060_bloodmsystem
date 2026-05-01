@@ -23,45 +23,24 @@ const Navbar = () => {
     const navLinkClass = (path) =>
         `nav-link ${location.pathname === path ? 'active' : ''}`;
 
-    const sidebarLinkClass = (path) =>
-        `sidebar-link ${location.pathname === path ? 'active' : ''}`;
+    const mobileLinkClass = (path) =>
+        `mobile-link ${location.pathname === path ? 'active' : ''}`;
 
     const handleLogout = () => {
         logout();
         navigate('/login');
     };
 
-    //handle home click: if already on home, scroll to top and refresh data; otherwise, just navigate
-    const handleHomeClick = (e) => {
-        if (location.pathname === '/') {
-            e.preventDefault();
-            // Scroll to top
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            // Force a reload to refresh data and come to top
-            window.location.reload(); 
-        }
-        closeMenu();
-    };
-
     // ─── Scroll detection ───
     useEffect(() => {
         const onScroll = () => {
-            setScrolled(window.scrollY > 50);
-            if (window.scrollY > 50) {
-                document.body.classList.add('scrolled');
-            } else {
-                document.body.classList.remove('scrolled');
-            }
+            setScrolled(window.scrollY > 100);
         };
         window.addEventListener('scroll', onScroll, { passive: true });
-
-        // Initial check in case loaded scrolled down
-        onScroll();
-
         return () => window.removeEventListener('scroll', onScroll);
     }, []);
 
-    // ─── Toggle sidebar menu ───
+    // ─── Toggle mobile menu ───
     const toggleMenu = () => {
         setMenuOpen(prev => !prev);
         document.body.classList.toggle('menu-open');
@@ -78,61 +57,31 @@ const Navbar = () => {
         return IconComponent ? <IconComponent size={size} /> : null;
     };
 
-    const isHomePage = location.pathname === '/';
-
-    // ─── Get current page name for mobile menu ───
-    const getCurrentPageName = () => {
-        const publicMatch = PUBLIC_NAV_ITEMS.find(item => item.path === location.pathname);
-        if (publicMatch) return publicMatch.label;
-        
-        if (isAuthenticated && roleNavItems) {
-            const roleMatch = roleNavItems.find(item => item.path === location.pathname);
-            if (roleMatch) return roleMatch.label;
-        }
-        
-        // Fallbacks for nested routes
-        if (location.pathname.includes('/dashboard')) return 'Dashboard';
-        if (location.pathname.includes('/profile')) return 'Profile';
-        if (location.pathname === '/') return 'Home';
-        return '';
-    };
-    const currentPageName = getCurrentPageName();
-
     return (
         <>
             {/* ==================== MAIN NAVIGATION ==================== */}
-            <nav className={`nav ${scrolled ? 'scrolled' : ''} ${isHomePage ? 'on-home' : ''}`} id="nav">
+            <nav className={`nav ${scrolled ? 'scrolled' : ''}`} id="nav">
 
                 {/* LOGO (left side) */}
-                <Link to="/" className="nav-logo nav-logo-home" onClick={handleHomeClick}>
+                <Link to="/" className="nav-logo" onClick={closeMenu}>
                     <img src={LOGOS.icon} alt="HOPEDROP Logo" className="nav-logo-img" />
                     <span className="logo-text">HOPEDROP</span>
                 </Link>
 
                 {/* DESKTOP LINKS (center — hidden below 1024px) */}
                 <div className="nav-links">
-                    {/* Public links (always visible) */}
-                    {PUBLIC_NAV_ITEMS.map((item) => (
-                        <Link 
-                            key={item.path} 
-                            to={item.path} 
-                            className={`${navLinkClass(item.path)} nav-link-home`}
-                            onClick={item.path === '/' ? handleHomeClick : closeMenu}
-                        >
-                            {item.icon && renderIcon(item.icon)}
+                    {/* Role-specific links (only when logged in) */}
+                    {isAuthenticated && roleNavItems.map((item) => (
+                        <Link key={item.path} to={item.path} className={navLinkClass(item.path)}>
+                            {renderIcon(item.icon)}
                             <span>{item.label}</span>
                         </Link>
                     ))}
 
-                    {/* Role-specific links (only when logged in) */}
-                    {isAuthenticated && roleNavItems.map((item) => (
-                        <Link 
-                            key={item.path} 
-                            to={item.path} 
-                            className={`${navLinkClass(item.path)} nav-link-home`}
-                            onClick={item.path === '/' ? handleHomeClick : closeMenu}
-                        >
-                            {renderIcon(item.icon)}
+                    {/* Public links (always visible) */}
+                    {PUBLIC_NAV_ITEMS.map((item) => (
+                        <Link key={item.path} to={item.path} className={navLinkClass(item.path)}>
+                            {item.icon && renderIcon(item.icon)}
                             <span>{item.label}</span>
                         </Link>
                     ))}
@@ -142,7 +91,7 @@ const Navbar = () => {
                 <div className="nav-actions">
                     {/* Dark Mode Toggle */}
                     <button
-                        className="theme-toggle-btn nav-theme-btn-home"
+                        className="theme-toggle-btn"
                         onClick={toggleTheme}
                         title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
                         aria-label="Toggle dark mode"
@@ -157,98 +106,77 @@ const Navbar = () => {
                         </span>
                     </button>
 
-                    {/* Desktop Auth Button (Hidden on Mobile) */}
-                    <div className="desktop-actions-only">
+                    {/* Auth Button */}
+                    {isAuthenticated ? (
+                        <button className="nav-cta" onClick={handleLogout}>
+                            <LogOut size={16} />
+                            <span className="cta-text">Logout</span>
+                        </button>
+                    ) : (
+                        <Link to="/login" className="nav-cta" onClick={closeMenu}>
+                            <LogIn size={16} />
+                            <span className="cta-text">Login</span>
+                        </Link>
+                    )}
+
+                    {/* SOS Button */}
+                    <button className="nav-sos" title="Emergency / Disaster Mode">
+                        <ShieldAlert size={16} />
+                        <span>SOS</span>
+                    </button>
+                </div>
+
+                {/* HAMBURGER TOGGLE (visible below 1024px) */}
+                <button
+                    className={`nav-menu-toggle ${menuOpen ? 'active' : ''}`}
+                    onClick={toggleMenu}
+                    aria-label="Toggle menu"
+                >
+                    <span className="menu-line"></span>
+                    <span className="menu-line"></span>
+                </button>
+            </nav>
+
+            {/* ==================== MOBILE FULLSCREEN MENU ==================== */}
+            <div className={`mobile-menu ${menuOpen ? 'active' : ''}`}>
+                <div className="mobile-menu-inner">
+                    {/* Role-specific links (only when logged in) */}
+                    {isAuthenticated && roleNavItems.map((item) => (
+                        <Link key={item.path} to={item.path} className={mobileLinkClass(item.path)} onClick={closeMenu}>
+                            {renderIcon(item.icon, 24)} {item.label}
+                        </Link>
+                    ))}
+
+                    {/* Public links (always visible) */}
+                    {PUBLIC_NAV_ITEMS.map((item) => (
+                        <Link key={item.path} to={item.path} className={mobileLinkClass(item.path)} onClick={closeMenu}>
+                            {item.icon && renderIcon(item.icon, 24)}
+                            <span>{item.label}</span>
+                        </Link>
+                    ))}
+
+                    {/* Mobile auth action */}
+                    <div className="mobile-menu-actions">
+                        <button
+                            className="mobile-theme-toggle"
+                            onClick={toggleTheme}
+                        >
+                            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+                            {theme === 'dark' ? ' Light Mode' : ' Dark Mode'}
+                        </button>
+
                         {isAuthenticated ? (
-                            <button className="nav-cta" onClick={handleLogout}>
-                                <LogOut size={16} />
-                                <span className="cta-text">Logout</span>
+                            <button className="mobile-auth-btn" onClick={() => { handleLogout(); closeMenu(); }}>
+                                <LogOut size={20} /> Logout
                             </button>
                         ) : (
-                            <Link to="/login" className="nav-cta">
-                                <LogIn size={16} />
-                                <span className="cta-text">Login</span>
+                            <Link to="/login" className="mobile-auth-btn" onClick={closeMenu}>
+                                <LogIn size={20} /> Login
                             </Link>
                         )}
                     </div>
-
-                    {/* HAMBURGER TOGGLE (visible below 1024px) */}
-                    <button
-                        className={`nav-menu-toggle ${menuOpen ? 'active' : ''}`}
-                        onClick={toggleMenu}
-                        aria-label="Toggle menu"
-                    >
-                        <span className="menu-line"></span>
-                        <span className="menu-line"></span>
-                        <span className="menu-line"></span>
-                    </button>
                 </div>
-            </nav>
-
-            {/* ==================== GLASSMORPHIC SIDEBAR (MOBILE) ==================== */}
-            <div className={`sidebar-overlay ${menuOpen ? 'active' : ''}`} onClick={closeMenu}></div>
-            <aside className={`glass-sidebar ${menuOpen ? 'open' : ''}`}>
-                <div className="sidebar-header">
-                    <Link to="/" className="nav-logo" onClick={handleHomeClick}>
-                        <img src={LOGOS.icon} alt="HOPEDROP Logo" className="nav-logo-img" />
-                        <span className="logo-text">HOPEDROP</span>
-                    </Link>
-                    <button className="sidebar-close-btn" onClick={closeMenu} aria-label="Close Menu">
-                        &times;
-                    </button>
-                </div>
-
-                {currentPageName && (
-                    <div className="sidebar-current-page">
-                        <span className="current-label">You are here:</span>
-                        <div className="current-page-name">{currentPageName}</div>
-                    </div>
-                )}
-
-                <div className="sidebar-content">
-                    {/* Public links */}
-                    {PUBLIC_NAV_ITEMS.map((item) => (
-                        <Link 
-                            key={`side-${item.path}`} 
-                            to={item.path} 
-                            className={sidebarLinkClass(item.path)} 
-                            onClick={item.path === '/' ? handleHomeClick : closeMenu}
-                        >
-                            <div className="sidebar-icon-wrapper">{renderIcon(item.icon, 20)}</div>
-                            <span className="sidebar-label">{item.label}</span>
-                        </Link>
-                    ))}
-
-                    {/* Role-specific links */}
-                    {isAuthenticated && roleNavItems.map((item) => (
-                        <Link 
-                            key={`side-${item.path}`} 
-                            to={item.path} 
-                            className={sidebarLinkClass(item.path)} 
-                            onClick={item.path === '/' ? handleHomeClick : closeMenu}
-                        >
-                            <div className="sidebar-icon-wrapper">{renderIcon(item.icon, 20)}</div>
-                            <span className="sidebar-label">{item.label}</span>
-                        </Link>
-                    ))}
-                </div>
-
-                <div className="sidebar-footer">
-                    <button className="sidebar-theme-toggle" onClick={toggleTheme}>
-                        {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-                        <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
-                    </button>
-                    {isAuthenticated ? (
-                        <button className="sidebar-auth-btn log-out" onClick={() => { handleLogout(); closeMenu(); }}>
-                            <LogOut size={18} /> <span>Logout</span>
-                        </button>
-                    ) : (
-                        <Link to="/login" className="sidebar-auth-btn log-in" onClick={closeMenu}>
-                            <LogIn size={18} /> <span>Login</span>
-                        </Link>
-                    )}
-                </div>
-            </aside>
+            </div>
         </>
     );
 };

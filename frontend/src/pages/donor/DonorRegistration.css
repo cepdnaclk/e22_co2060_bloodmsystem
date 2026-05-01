@@ -1,0 +1,130 @@
+/* ═══════════════════════════════════════════════════
+   HOPEDROP — Donor Registration Page Styles
+   Isolated completely from SignUp to prevent breaking Other Pages
+   ═══════════════════════════════════════════════════ */
+
+.donor-reg-container {
+    min-height: calc(100vh - 70px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+    animation: authFadeIn 0.55s ease-out forwards;
+    background: linear-gradient(135deg, #f8f4f4 0%, #fff0f0 50%, #fdf6f6 100%);
+}
+
+[data-theme="dark"] .donor-reg-container {
+    background: linear-gradient(135deg, #0a0d14 0%, #110a0a 55%, #0d1117 100%);
+}
+
+[data-theme="dark"] .donor-reg-container::before {
+    content: '';
+    position: absolute;
+    width: 480px;
+    height: 480px;
+    top: -120px;
+    left: -100px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(198, 40, 40, 0.22) 0%, transparent 70%);
+    pointer-events: none;
+    filter: blur(90px);
+}
+
+[data-theme="dark"] .donor-reg-container::after {
+    content: '';
+    position: absolute;
+    width: 350px;
+    height: 350px;
+    bottom: -70px;
+    right: -70px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(139, 0, 0, 0.18) 0%, transparent 70%);
+    pointer-events: none;
+    filter: blur(80px);
+}
+
+.donor-split-card {
+    width: 100%;
+    max-width: 1000px;
+    min-height: 600px;
+    display: flex;
+    border-radius: 24px;
+    overflow: hidden;
+    position: relative;
+    z-index: 2;
+    transition: box-shadow 0.35s ease;
+    background: #ffffff;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.1),
+        0 4px 16px rgba(198, 40, 40, 0.06);
+}
+
+[data-theme="dark"] .donor-split-card {
+    background: rgba(22, 27, 34, 0.9);
+    border: 1px solid rgba(198, 40, 40, 0.2);
+    box-shadow: 0 16px 64px rgba(0, 0, 0, 0.65),
+        0 0 0 1px rgba(255, 255, 255, 0.04),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.donor-visual-section {
+    flex: 0 0 40%;
+    position: relative;
+    overflow: hidden;
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 3rem;
+    background: linear-gradient(165deg, #C62828 0%, #8B0000 55%, #4a0000 100%);
+}
+
+.donor-form-section {
+    flex: 1;
+    padding: 3rem 3.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow-y: auto;
+    background: #ffffff;
+}
+
+[data-theme="dark"] .donor-form-section {
+    background: transparent;
+}
+
+.donor-confirm-checkbox {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+    .donor-split-card {
+        flex-direction: column;
+        max-width: 520px;
+        min-height: unset;
+    }
+
+    .donor-visual-section {
+        flex: none;
+        min-height: 220px;
+        justify-content: center;
+    }
+
+    .donor-form-section {
+        flex: none;
+        padding: 2.5rem 2rem;
+    }
+}
+
+@media (max-width: 600px) {
+    .donor-form-section {
+        padding: 2rem 1.5rem;
+    }
+}
