@@ -1,7 +1,5 @@
-from django.db import models
-
 from apps.UserAuth.models.location import Country, District
-
+from django.db import models
 
 __all__ = ["BloodBank"]
 

@@ -15,6 +15,10 @@ import {
     Calendar,
     Stethoscope,
     ClipboardList,
+    Home,
+    Mail,
+    Info,
+    Settings
 } from 'lucide-react';
 
 /* ── Icon lookup (used by Navbar to render the correct icon) ── */
@@ -25,43 +29,42 @@ export const ICON_MAP = {
     Calendar,
     Stethoscope,
     ClipboardList,
+    Home,
+    Mail,
+    Info,
+    Settings
 };
 
 /* ── Role definitions ── */
 const ROLE_CONFIG = {
     admin: {
         label: 'System Administrator',
-        dashboard: '/admin',
-        allowedRoutes: ['/admin', '/staff', '/doctor', '/donor', '/patient', '/events'],
+        dashboard: '/adminDashboard',
+        allowedRoutes: ['/adminDashboard', '/staffViews', '/doctor', '/donor', '/patient', '/events'],
         navItems: [
             { path: '/doctor',  label: 'Medical',  icon: 'Activity' },
-            { path: '/staff',   label: 'Lab',      icon: 'ClipboardList' },
+            { path: '/staffViews',   label: 'Lab',      icon: 'ClipboardList' },
             { path: '/donor',   label: 'Donor',    icon: 'User' },
-            { path: '/patient', label: 'Patient',  icon: 'User' },
-            { path: '/events',  label: 'Events',   icon: 'Calendar' },
         ],
     },
 
     medical_officer: {
         label: 'Medical Officer',
         dashboard: '/doctor',
-        allowedRoutes: ['/doctor', '/patient', '/events', '/staff'],
+        allowedRoutes: ['/doctor', '/patient', '/events', '/staffViews'],
         navItems: [
             { path: '/doctor',  label: 'Medical',  icon: 'Activity' },
-            { path: '/patient', label: 'Patient',  icon: 'User' },
-            { path: '/staff',   label: 'Lab',      icon: 'ClipboardList' },
-            { path: '/events',  label: 'Events',   icon: 'Calendar' },
+
+            { path: '/staffViews',   label: 'Lab',      icon: 'ClipboardList' },
         ],
     },
 
     doctor: {
         label: 'Doctor',
         dashboard: '/doctor',
-        allowedRoutes: ['/doctor', '/patient', '/events'],
+        allowedRoutes: ['/doctor',  '/events'],
         navItems: [
             { path: '/doctor',  label: 'Medical',  icon: 'Activity' },
-            { path: '/patient', label: 'Patient',  icon: 'User' },
-            { path: '/events',  label: 'Events',   icon: 'Calendar' },
         ],
     },
 
@@ -71,16 +74,17 @@ const ROLE_CONFIG = {
         allowedRoutes: ['/donor', '/events'],
         navItems: [
             { path: '/donor',   label: 'Donor',  icon: 'User' },
-            { path: '/events',  label: 'Events', icon: 'Calendar' },
         ],
     },
 };
 
 /* ── Public pages visible to ALL users (logged-in or not) ── */
 export const PUBLIC_NAV_ITEMS = [
+    { path: '/',   label: 'Home',   icon: 'Home' },
+    { path: '/events',  label: 'Events', icon: 'Calendar' },
     { path: '/contact',   label: 'Contact',   icon: 'Mail' },
-    { path: '/about-us',  label: 'About Us' },
-    { path: '/services',  label: 'Services' },
+    { path: '/about-us',  label: 'About Us',  icon: 'Info' },
+    { path: '/services',  label: 'Services',  icon: 'Settings' },
 ];
 
 /* ── Public routes that don't need auth ── */
@@ -88,7 +92,7 @@ export const PUBLIC_ROUTES = ['/', '/login', '/signup', '/contact', '/events', '
 
 /* ── Role options for the signup form ── */
 export const ROLE_OPTIONS = [
-    { value: 'patient', label: 'Patient' },
+    { value: 'donor', label: 'Donor' },
 
 ];
 

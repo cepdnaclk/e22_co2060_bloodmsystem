@@ -75,7 +75,7 @@ class RegisterView(generics.CreateAPIView):
         # Generate tokens for the newly registered user
         refresh = RefreshToken.for_user(user)
 
-        if user.role !="patient":
+        if user.role !="donor":
             return Response(
                 {
                     "error":"invalid "
@@ -125,14 +125,6 @@ def get_user_profile(request):
 @api_view(["PUT", "PATCH"])
 @permission_classes([IsAuthenticated])
 def update_user_profile(request):
-    """
-    Update user profile
-    PUT/PATCH /api/auth/profile/update/
-    Body: {
-        "fullName": "John Doe",
-        "bio": "Blood donor since 2020"
-    }
-    """
     user = request.user
     try:
         profile = user.profile

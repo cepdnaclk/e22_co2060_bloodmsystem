@@ -8,6 +8,7 @@ import { flattenApiErrors, mapApiKeyToFormField } from '../../utils/errorParser'
 import { getCountries, getDistricts } from '../../config/locationData';
 import { ROLE_OPTIONS } from '../../config/roleConfig';
 import { searchHospitalsByName } from '../../utils/overpassApi';
+import './SignUp.css';
 
 /* ── Validation helpers ── */
 const VALIDATORS = {

@@ -62,7 +62,7 @@ export const searchHospitalsByName = async (query, district = '') => {
                     type === 'clinic' ||
                     type === 'doctors' ||
                     name.includes('hospital') ||
-                    name.includes('medical') ||
+                    name.includes('medicalOfficers') ||
                     name.includes('health')
                 );
             })

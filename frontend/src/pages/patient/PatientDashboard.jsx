@@ -73,7 +73,7 @@ const PatientDashboard = () => {
                 } else {
                     Swal.fire(
                         'Request Submitted',
-                        'Your request is pending medical officer verification.',
+                        'Your request is pending medicalOfficers officer verification.',
                         'success'
                     );
                 }

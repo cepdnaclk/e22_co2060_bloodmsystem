@@ -8,8 +8,8 @@ from django_rest_passwordreset.signals import reset_password_token_created
 def password_reset_token_created(
     sender, instance, reset_password_token, *args, **kwargs
 ):
-    frontend_url = "http://localhost:5173/reset-password"
-    reset_link = f"{frontend_url}?token={reset_password_token.key}"
+    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
+    reset_link = f"{frontend_url}/reset-password?token={reset_password_token.key}"
 
     subject = "HOPEDROP Password Reset"
     message = (

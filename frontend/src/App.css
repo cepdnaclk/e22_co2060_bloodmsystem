@@ -25,6 +25,11 @@
   transform: translateY(20px);
 }
 
+.main-content.no-padding {
+  padding: 0;
+  max-width: 100%;
+}
+
 @keyframes fadeUpEntrance {
   0% {
     opacity: 0;

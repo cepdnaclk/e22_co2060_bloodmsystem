@@ -1,7 +1,7 @@
 
 from django.db import models
-from .bloodBank import BloodBank
 
+from .bloodBank import BloodBank
 
 
 class BloodInventory(models.Model):
@@ -25,6 +25,7 @@ class BloodInventory(models.Model):
     status = models.CharField(max_length=20, default="available")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    temperature = models.DecimalField(max_digits=5, decimal_places=2)# in blood inventory
 
     def __str__(self):
         return f"{self.blood_type} - {self.quantity} units"

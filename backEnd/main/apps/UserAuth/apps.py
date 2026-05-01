@@ -5,3 +5,6 @@ class UserConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "apps.UserAuth"
     label = "UserAuth"  # keeps AUTH_USER_MODEL='UserAuth.User' working
+
+    def ready(self):
+        import apps.UserAuth.services.signals  # noqa: F401

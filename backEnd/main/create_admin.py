@@ -1,19 +1,19 @@
 import os
+
 import django
-import sys
 
 # Setup Django environment
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
-from django.contrib.auth import get_user_model
 from apps.UserAuth.models import Profile
+from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
 def create_system_admin():
-    admin_email = 'admin@hopedrop.com'
-    admin_username = 'admin'
+    admin_email = 'adminDashboard@hopedrop.com'
+    admin_username = 'adminDashboard'
     admin_password = 'AdminPassword123!'
 
     if User.objects.filter(email=admin_email).exists():
@@ -30,8 +30,8 @@ def create_system_admin():
         password=admin_password
     )
 
-    # 2. Explicitly set the custom role to "admin"
-    user.role = 'admin'
+    # 2. Explicitly set the custom role to "adminDashboard"
+    user.role = 'adminDashboard'
     user.save()
 
     # 3. Create a default profile to satisfy JWT payload expectations

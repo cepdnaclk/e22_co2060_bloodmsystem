@@ -103,7 +103,7 @@ export default function Services() {
     {
       icon: Droplet,
       title: 'Blood Donation',
-      description: 'Safe and convenient blood donation process with trained medical staff.',
+      description: 'Safe and convenient blood donation process with trained medicalOfficers staffViews.',
       features: [
         'Walk-in and scheduled appointments',
         'Comprehensive donor screening',
@@ -163,7 +163,7 @@ export default function Services() {
         'On-site blood collection',
         'Corporate and community events',
         'Fully equipped mobile units',
-        'Professional medical staff'
+        'Professional medicalOfficers staffViews'
       ]
     }
   ];
@@ -172,9 +172,9 @@ export default function Services() {
     {
       icon: Clock,
       title: '24/7 Emergency Services',
-      description: 'Our emergency blood supply service operates around the clock to ensure that life-saving blood is available whenever and wherever it\'s needed. With our rapid response team and streamlined processes, we guarantee quick delivery to hospitals and medical facilities during critical situations.',
+      description: 'Our emergency blood supply service operates around the clock to ensure that life-saving blood is available whenever and wherever it\'s needed. With our rapid response team and streamlined processes, we guarantee quick delivery to hospitals and medicalOfficers facilities during critical situations.',
       imageUrl: SERVICES.emergencyServices,
-      imageAlt: 'Emergency medical response'
+      imageAlt: 'Emergency medicalOfficers response'
     },
     {
       icon: Shield,

@@ -5,7 +5,7 @@ import { useAuth } from '../context/auth/useAuth';
  * RoleRoute – protects a route by both authentication AND role.
  *
  * Usage:
- *   <RoleRoute allowedRoles={['admin', 'doctor']}>
+ *   <RoleRoute allowedRoles={['adminDashboard', 'doctor']}>
  *       <DoctorDashboard />
  *   </RoleRoute>
  *

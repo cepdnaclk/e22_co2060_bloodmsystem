@@ -22,6 +22,12 @@ class ProfileSerializer(serializers.ModelSerializer):
             "district",
             "hospital",
         ]
+
+        read_only_fields=[
+            "fullName",
+            "nic_number",
+            "blood_group",
+        ]
         extra_kwargs = {
             "country": {"required": False, "allow_null": True},
             "district": {"required": False, "allow_null": True},

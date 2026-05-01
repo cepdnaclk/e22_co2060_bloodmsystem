@@ -104,7 +104,7 @@ frontend/src/
 <Route element={<RoleRoute allowedRoles={['admin']} />}>
     <Route element={<AdminLayout />}>
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        {/* ...other admin routes */}
+        {/* ...other adminDashboard routes */}
     </Route>
 </Route>
 ```
@@ -121,10 +121,10 @@ from rest_framework.permissions import BasePermission
 
 class IsAdminUserRole(BasePermission):
     """
-    Allows access only to users with the 'admin' role.
+    Allows access only to users with the 'adminDashboard' role.
     """
     def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated and request.user.role == 'admin')
+        return bool(request.user and request.user.is_authenticated and request.user.role == 'adminDashboard')
 ```
 
 **Example API Endpoints:**

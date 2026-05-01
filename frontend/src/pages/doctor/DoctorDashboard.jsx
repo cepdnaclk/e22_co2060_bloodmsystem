@@ -1,420 +1,428 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useAuth } from '../../context/auth/useAuth';
 import {
-    LayoutDashboard, Activity, Search, AlertCircle, Droplet, 
-    Users, FileText, Settings, Bell, ChevronRight, 
-    Check, X, Eye, Clock, Phone, Mail, MapPin, Search as SearchIcon
+    AlertCircle, Activity, Search, Ambulance,
+    LayoutDashboard, Droplet, ClipboardList, Bell, User, Clock, CheckCircle, XCircle,
+    UserCircle, Camera
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import './DoctorDashboard.css';
 
 const DoctorDashboard = () => {
     const [activeTab, setActiveTab] = useState('dashboard');
-    const [selectedPatient, setSelectedPatient] = useState(null);
-    const [filterGroup, setFilterGroup] = useState('All');
-    const [filterUrgency, setFilterUrgency] = useState('All');
-    const [filterStatus, setFilterStatus] = useState('All');
+    const [profileImage, setProfileImage] = useState(null);
+    const { user, authTokens } = useAuth();
+    const [profileData, setProfileData] = useState(null);
 
-    // Refs for scrolling
-    const dashboardRef = useRef(null);
-    const requestsRef = useRef(null);
-    const emergencyRef = useRef(null);
-    const patientsRef = useRef(null);
-    const inventoryRef = useRef(null);
-    const reportsRef = useRef(null);
-    const settingsRef = useRef(null);
+    // Replace with your actual backend base URL if it's different
+    const API_BASE = "http://localhost:8000/api/v1/users"; 
 
-    const scrollToSection = (id) => {
-        setActiveTab(id);
-        const refs = {
-            dashboard: dashboardRef,
-            requests: requestsRef,
-            emergency: emergencyRef,
-            patients: patientsRef,
-            inventory: inventoryRef,
-            reports: reportsRef,
-            settings: settingsRef
-        };
-        if (refs[id] && refs[id].current) {
-            refs[id].current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    useEffect(() => {
+        if (user && user.user_id) {
+            fetchDoctorProfile();
+        }
+    }, [user, authTokens]);
+
+    const fetchDoctorProfile = async () => {
+        try {
+            const res = await axios.get(`${API_BASE}/doctor/profile/${user.user_id}/`, {
+                headers: { Authorization: `Bearer ${authTokens?.access}` }
+            });
+            setProfileData(res.data);
+            if (res.data.profile_pic) {
+                setProfileImage(res.data.profile_pic);
+            }
+        } catch (error) {
+            console.error("Error fetching profile", error);
         }
     };
 
-    // Dummy Data
-    const requests = [
-        { id: 'REQ-101', patient: 'John Doe', group: 'A+', units: 2, ward: 'ICU-A', urgency: 'Urgent', status: 'Pending', date: '2026-04-27', diagnosis: 'Severe Anemia' },
-        { id: 'REQ-102', patient: 'Sarah Smith', group: 'O-', units: 4, ward: 'Surgery', urgency: 'Critical', status: 'Pending', date: '2026-04-27', diagnosis: 'Trauma' },
-        { id: 'REQ-103', patient: 'Michael Lee', group: 'B+', units: 1, ward: 'General', urgency: 'Normal', status: 'Approved', date: '2026-04-26', diagnosis: 'Routine Surgery' },
-        { id: 'REQ-104', patient: 'Emma Watson', group: 'AB+', units: 3, ward: 'Maternity', urgency: 'Urgent', status: 'Rejected', date: '2026-04-25', diagnosis: 'Complications' },
-        { id: 'REQ-105', patient: 'David Clark', group: 'O+', units: 2, ward: 'ER', urgency: 'Critical', status: 'Pending', date: '2026-04-27', diagnosis: 'Accident' },
-    ];
+    const handleImageUpload = async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const formData = new FormData();
+            // Assuming your backend model expects 'profile_pic' or 'image'
+            formData.append('profile_pic', file);
 
-    const inventory = [
-        { type: 'A+', units: 45, status: 'Good' },
-        { type: 'A-', units: 12, status: 'Low' },
-        { type: 'B+', units: 30, status: 'Good' },
-        { type: 'B-', units: 8, status: 'Critical' },
-        { type: 'O+', units: 50, status: 'Good' },
-        { type: 'O-', units: 5, status: 'Critical' },
-        { type: 'AB+', units: 20, status: 'Good' },
-        { type: 'AB-', units: 15, status: 'Good' },
-    ];
+            try {
+                await axios.patch(`${API_BASE}/doctor/profile-pic/`, formData, {
+                    headers: {
+                        Authorization: `Bearer ${authTokens?.access}`,
+                        'Content-Type': 'multipart/form-data'
+                    }
+                });
 
-    const donorMatches = [
-        { name: 'Alice Cooper', group: 'O-', distance: '2.5 km', lastDonated: '3 months ago', status: 'Available' },
-        { name: 'Tom Hardy', group: 'O-', distance: '4.1 km', lastDonated: '5 months ago', status: 'Available' },
-        { name: 'Nina Dobrev', group: 'A+', distance: '1.2 km', lastDonated: '2 months ago', status: 'Busy' },
-    ];
-
-    const notifications = [
-        { id: 1, title: 'New Emergency Request', message: 'Patient Sarah Smith needs 4 units O-', time: '5m ago', type: 'critical' },
-        { id: 2, title: 'Inventory Alert', message: 'O- stock is critically low (5 units left)', time: '1h ago', type: 'warning' },
-        { id: 3, title: 'Request Approved', message: 'Michael Lee request fulfilled', time: '2h ago', type: 'success' },
-    ];
-
-    const timeline = [
-        { action: 'Approved request for Michael Lee', time: '10:30 AM' },
-        { action: 'Rejected request due to low stock (Emma W.)', time: '09:15 AM' },
-        { action: 'Emergency case added: Sarah Smith', time: '08:45 AM' },
-        { action: 'Logged in to system', time: '08:00 AM' }
-    ];
-
-    const handleAction = (action, request) => {
-        if (action === 'view') {
-            setSelectedPatient(request);
-            return;
+                setProfileImage(URL.createObjectURL(file));
+                Swal.fire({
+                    title: 'Photo Uploaded!',
+                    text: 'Your profile photo has been updated on the server.',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+            } catch (err) {
+                console.error("Upload error", err);
+                Swal.fire('Upload Failed', 'Could not save the image. Try again.', 'error');
+            }
         }
+    };
 
-        const actionText = action === 'accept' ? 'Approve' : 'Reject';
-        const confirmColor = action === 'accept' ? '#22c55e' : '#ef4444';
-
+    const handleEmergencyRequest = () => {
         Swal.fire({
-            title: `Confirm ${actionText}`,
-            text: `Are you sure you want to ${actionText.toLowerCase()} the request for ${request.patient}?`,
+            title: 'EMERGENCY BLOOD REQUEST',
+            html: `
+                <div style="text-align: left;">
+                    <p style="color: #d32f2f; font-weight: bold; margin-bottom: 10px;">Warning: This triggers an immediate high-priority alert to the blood bank.</p>
+                    <label>Blood Group Required:</label>
+                    <select id="em-blood" style="width: 100%; padding: 8px; margin-bottom: 10px; border-radius: 4px;">
+                        <option>O- (Universal Donor)</option>
+                        <option>O+</option>
+                        <option>A-</option>
+                        <option>A+</option>
+                        <option>B-</option>
+                        <option>B+</option>
+                        <option>AB-</option>
+                        <option>AB+</option>
+                    </select>
+                    <label>Units Needed:</label>
+                    <input id="em-units" type="number" value="2" style="width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 10px; border-radius: 4px; border: 1px solid #ccc;" />
+                </div>
+            `,
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: confirmColor,
-            cancelButtonColor: '#6b7280',
-            confirmButtonText: `Yes, ${actionText}`
+            confirmButtonColor: '#d32f2f',
+            cancelButtonColor: '#637381',
+            confirmButtonText: 'SUBMIT EMERGENCY REQUEST'
         }).then((result) => {
             if (result.isConfirmed) {
-                Swal.fire('Success', `Request has been ${actionText.toLowerCase()}ed.`, 'success');
+                Swal.fire('Dispatched!', 'Emergency request sent to Blood Bank Admin and Logistics immediately.', 'success');
             }
         });
     };
 
-    const QuickApprove = (name) => {
-        Swal.fire('Quick Approved!', `Emergency request for ${name} has been immediately approved. Blood Bank is notified.`, 'success');
-    };
-
-    // Filter Logic
-    const filteredRequests = requests.filter(req => {
-        if (filterGroup !== 'All' && req.group !== filterGroup) return false;
-        if (filterUrgency !== 'All' && req.urgency !== filterUrgency) return false;
-        if (filterStatus !== 'All' && req.status !== filterStatus) return false;
-        return true;
-    });
-
-    const renderPatientModal = () => {
-        if (!selectedPatient) return null;
-        return (
-            <div className="modal-overlay" onClick={() => setSelectedPatient(null)}>
-                <div className="modal-content glass-effect" onClick={e => e.stopPropagation()}>
-                    <button className="modal-close" onClick={() => setSelectedPatient(null)}><X size={24} /></button>
-                    <h2>Patient Details</h2>
-                    <div className="patient-detail-grid">
-                        <div className="detail-item">
-                            <span className="label">Patient Name</span>
-                            <span className="value">{selectedPatient.patient}</span>
+    const renderContent = () => {
+        switch(activeTab) {
+            case 'request':
+                return (
+                    <div className="card fade-in">
+                        <div className="card-header">
+                            <h2>New Blood Request</h2>
                         </div>
-                        <div className="detail-item">
-                            <span className="label">Blood Required</span>
-                            <span className="value text-primary font-bold">{selectedPatient.group}</span>
-                        </div>
-                        <div className="detail-item">
-                            <span className="label">Units Needed</span>
-                            <span className="value">{selectedPatient.units} Units</span>
-                        </div>
-                        <div className="detail-item">
-                            <span className="label">Urgency</span>
-                            <span className={`badge ${selectedPatient.urgency.toLowerCase()}`}>{selectedPatient.urgency}</span>
-                        </div>
-                        <div className="detail-item">
-                            <span className="label">Diagnosis</span>
-                            <span className="value">{selectedPatient.diagnosis}</span>
-                        </div>
-                        <div className="detail-item">
-                            <span className="label">Hospital / Ward</span>
-                            <span className="value">{selectedPatient.ward}</span>
-                        </div>
-                        <div className="detail-item full-width">
-                            <span className="label">Doctor Notes</span>
-                            <div className="notes-box">
-                                Patient requires immediate transfusion. Ensure cross-matching is done urgently. History of minor allergic reactions to plasma.
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <h3 className="mt-4 mb-2">Smart Donor Match Suggestion ⭐</h3>
-                    <div className="donor-suggestions">
-                        {donorMatches.filter(d => d.group === selectedPatient.group || d.group === 'O-').map((donor, idx) => (
-                            <div key={idx} className="donor-card">
-                                <div className="donor-info">
-                                    <strong>{donor.name}</strong>
-                                    <span>{donor.group} • {donor.distance}</span>
-                                    <small>Last Donated: {donor.lastDonated}</small>
-                                </div>
-                                <button className="btn-small btn-primary">Contact</button>
-                            </div>
-                        ))}
-                        {donorMatches.filter(d => d.group === selectedPatient.group || d.group === 'O-').length === 0 && (
-                            <p className="text-muted">No immediate nearby matches found.</p>
-                        )}
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
-    const renderMainContent = () => {
-        return (
-            <div className="main-content-scroll fade-in">
-                {/* Dashboard Section */}
-                <div ref={dashboardRef} className="section-container" style={{ paddingTop: '10px' }}>
-                    <div className="summary-cards">
-                        <div className="card glass-card summary-card">
-                            <div className="card-icon pending"><Clock size={24} /></div>
-                            <div className="card-info">
-                                <h3>Pending Requests</h3>
-                                <h2>12</h2>
-                            </div>
-                        </div>
-                        <div className="card glass-card summary-card">
-                            <div className="card-icon approved"><Check size={24} /></div>
-                            <div className="card-info">
-                                <h3>Approved Requests</h3>
-                                <h2>45</h2>
-                            </div>
-                        </div>
-                        <div className="card glass-card summary-card emergency-pulse">
-                            <div className="card-icon emergency"><Activity size={24} /></div>
-                            <div className="card-info">
-                                <h3>Emergency Requests</h3>
-                                <h2 className="text-critical">3</h2>
-                            </div>
-                        </div>
-                        <div className="card glass-card summary-card">
-                            <div className="card-icon inventory"><Droplet size={24} /></div>
-                            <div className="card-info">
-                                <h3>Available Units</h3>
-                                <h2>187</h2>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Emergency Section */}
-                {requests.some(r => r.urgency === 'Critical') && (
-                    <div ref={emergencyRef} className="section-container" style={{ paddingTop: '20px' }}>
-                        <div className="emergency-section glass-card critical-glow">
-                            <div className="emergency-header">
-                                <h2 className="flex items-center gap-2"><AlertCircle className="animate-pulse" /> CRITICAL EMERGENCY CASES</h2>
-                            </div>
-                            <div className="emergency-list">
-                                {requests.filter(r => r.urgency === 'Critical').map(req => (
-                                    <div key={req.id} className="emergency-item">
-                                        <div className="em-info">
-                                            <strong>{req.patient}</strong>
-                                            <span>{req.ward} • Need {req.units} units of {req.group}</span>
-                                        </div>
-                                        <button className="btn btn-critical animate-pulse-btn" onClick={() => QuickApprove(req.patient)}>
-                                            Quick Approve
-                                        </button>
+                        <div className="card-body">
+                            <form style={{ display: 'grid', gap: '20px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                    <div>
+                                        <label>Patient Name</label>
+                                        <input type="text" className="input-large" placeholder="Enter patient name" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
                                     </div>
-                                ))}
-                            </div>
+                                    <div>
+                                        <label>Patient ID / MRN</label>
+                                        <input type="text" className="input-large" placeholder="E.g. PT-10293" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                                    </div>
+                                    <div>
+                                        <label>Blood Group Required</label>
+                                        <select style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}>
+                                            <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+                                            <option>O+</option><option>O-</option><option>AB+</option><option>AB-</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label>Units Needed</label>
+                                        <input type="number" min="1" defaultValue="1" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                                    </div>
+                                    <div>
+                                        <label>Urgency Level</label>
+                                        <select style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}>
+                                            <option>Normal (Within 24h)</option>
+                                            <option>Urgent (Within 4h)</option>
+                                            <option>Critical (Immediate)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label>Required Date/Time</label>
+                                        <input type="datetime-local" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label>Reason for Transfusion</label>
+                                    <textarea rows="3" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} placeholder="Surgery, Accident, Anemia, etc."></textarea>
+                                </div>
+                                <button type="button" className="btn btn-primary" style={{ padding: '12px', fontSize: '16px', maxWidth: '200px' }} onClick={() => Swal.fire('Success', 'Blood Request Submitted successfully', 'success')}>
+                                    Submit Request
+                                </button>
+                            </form>
                         </div>
                     </div>
-                )}
-
-                {/* Request Management Table */}
-                <div ref={requestsRef} className="section-container" style={{ paddingTop: '20px' }}>
-                    <div className="card glass-card mt-6">
-                        <div className="card-header flex justify-between items-center">
-                            <h2>Blood Request Management</h2>
-                            <div className="filters">
-                                <select value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)}>
-                                    <option value="All">All Groups</option>
-                                    <option value="A+">A+</option><option value="O-">O-</option>
-                                    <option value="B+">B+</option><option value="AB+">AB+</option>
-                                </select>
-                                <select value={filterUrgency} onChange={(e) => setFilterUrgency(e.target.value)}>
-                                    <option value="All">All Urgency</option>
-                                    <option value="Normal">Normal</option>
-                                    <option value="Urgent">Urgent</option>
-                                    <option value="Critical">Critical</option>
-                                </select>
-                                <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-                                    <option value="All">All Status</option>
-                                    <option value="Pending">Pending</option>
-                                    <option value="Approved">Approved</option>
-                                    <option value="Rejected">Rejected</option>
-                                </select>
+                );
+            case 'status':
+                return (
+                    <div className="card fade-in">
+                        <div className="card-header">
+                            <h2>My Request Status</h2>
+                            <div className="search-bar">
+                                <Search size={16} />
+                                <input type="text" placeholder="Search by patient ID or name..." />
                             </div>
                         </div>
-                        <div className="table-responsive">
-                            <table className="modern-table">
+                        <div className="card-body p-0">
+                            <table className="data-table" style={{ width: '100%' }}>
                                 <thead>
                                     <tr>
-                                        <th>Patient Name</th>
+                                        <th>Patient</th>
                                         <th>Blood Group</th>
                                         <th>Units</th>
-                                        <th>Ward</th>
                                         <th>Urgency</th>
                                         <th>Status</th>
-                                        <th>Actions</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredRequests.map(req => (
-                                        <tr key={req.id}>
-                                            <td className="font-medium">{req.patient}</td>
-                                            <td><span className="blood-drop-badge">{req.group}</span></td>
-                                            <td>{req.units}</td>
-                                            <td>{req.ward}</td>
-                                            <td><span className={`badge ${req.urgency.toLowerCase()}`}>{req.urgency}</span></td>
-                                            <td><span className={`status-dot ${req.status.toLowerCase()}`}>{req.status}</span></td>
-                                            <td>
-                                                <div className="action-buttons">
-                                                    {req.status === 'Pending' && (
-                                                        <>
-                                                            <button className="btn-icon accept" onClick={() => handleAction('accept', req)} title="Accept"><Check size={16} /></button>
-                                                            <button className="btn-icon reject" onClick={() => handleAction('reject', req)} title="Reject"><X size={16} /></button>
-                                                        </>
-                                                    )}
-                                                    <button className="btn-icon view" onClick={() => handleAction('view', req)} title="View Details"><Eye size={16} /></button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    <tr>
+                                        <td><strong>John Doe</strong><br/><span style={{fontSize: '12px', color: '#666'}}>PT-84930</span></td>
+                                        <td>A+</td>
+                                        <td>2</td>
+                                        <td>Urgent</td>
+                                        <td><span className="badge warning"><Clock size={12} style={{marginRight: '4px', display: 'inline'}} /> Pending</span></td>
+                                        <td><button className="btn btn-outline text-xs">View/Edit</button></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Maria Garcia</strong><br/><span style={{fontSize: '12px', color: '#666'}}>PT-11293</span></td>
+                                        <td>O-</td>
+                                        <td>4</td>
+                                        <td>Critical</td>
+                                        <td><span className="badge safe"><CheckCircle size={12} style={{marginRight: '4px', display: 'inline'}} /> Approved</span></td>
+                                        <td><button className="btn btn-primary text-xs">Acknowledge</button></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Robert Smith</strong><br/><span style={{fontSize: '12px', color: '#666'}}>PT-33211</span></td>
+                                        <td>AB+</td>
+                                        <td>1</td>
+                                        <td>Normal</td>
+                                        <td><span className="badge critical"><XCircle size={12} style={{marginRight: '4px', display: 'inline'}} /> Rejected</span></td>
+                                        <td><button className="btn btn-outline text-xs">View Reason</button></td>
+                                    </tr>
                                 </tbody>
                             </table>
-                            {filteredRequests.length === 0 && <div className="no-data">No requests found matching filters.</div>}
                         </div>
                     </div>
-                </div>
+                );
+            case 'availability':
+                return (
+                    <div className="card fade-in">
+                        <div className="card-header">
+                            <h2>Check Blood Availability</h2>
+                        </div>
+                        <div className="card-body">
+                            <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-end', marginBottom: '30px' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label>Select Blood Group</label>
+                                    <select style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}>
+                                        <option>O-</option><option>O+</option><option>A-</option><option>A+</option>
+                                    </select>
+                                </div>
+                                <button className="btn btn-primary" style={{ padding: '10px 24px' }}>Check Stock</button>
+                            </div>
 
-            </div>
-        );
+                            <h4>Nearby Blood Banks</h4>
+                            <div style={{ display: 'grid', gap: '15px', marginTop: '15px' }}>
+                                <div style={{ border: '1px solid #eee', padding: '15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div>
+                                        <strong>Hospital Blood Bank (Internal)</strong>
+                                        <p style={{ color: '#666', fontSize: '14px', margin: '4px 0 0 0' }}>Current Stock: <span style={{ color: '#2e7d32', fontWeight: 'bold' }}>High (14 Units)</span></p>
+                                    </div>
+                                    <button className="btn btn-outline" onClick={() => setActiveTab('request')}>Request Here</button>
+                                </div>
+                                <div style={{ border: '1px solid #eee', padding: '15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div>
+                                        <strong>Central City Regional Bank</strong>
+                                        <p style={{ color: '#666', fontSize: '14px', margin: '4px 0 0 0' }}>Distance: 5km | Stock: <span style={{ color: '#ed6c02', fontWeight: 'bold' }}>Medium (5 Units)</span></p>
+                                    </div>
+                                    <button className="btn btn-outline" onClick={() => setActiveTab('request')}>Request Here</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            case 'profile':
+                return (
+                    <div className="card fade-in">
+                        <div className="card-header">
+                            <h2>My Profile</h2>
+                        </div>
+                        <div className="card-body">
+                            <div style={{ display: 'flex', gap: '30px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                {/* Photo Upload Section */}
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px', width: '200px' }}>
+                                    <div style={{
+                                        width: '150px', height: '150px', borderRadius: '50%', backgroundColor: '#e0e0e0',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+                                        border: '4px solid #fff', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                                    }}>
+                                        {profileImage ? (
+                                            <img src={profileImage} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        ) : (
+                                            <User size={80} color="#999" />
+                                        )}
+                                    </div>
+                                    <label className="btn btn-outline" style={{ cursor: 'pointer', display: 'flex', gap: '8px', alignItems: 'center', fontSize: '14px' }}>
+                                        <Camera size={16} /> Upload Photo
+                                        <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
+                                    </label>
+                                </div>
+
+                                {/* Details Section */}
+                                <div style={{ flex: 1, minWidth: '300px' }}>
+                                    <form style={{ display: 'grid', gap: '20px' }}>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+                                            <div>
+                                                <label>Full Name</label>
+                                                <input type="text" value={profileData?.full_name || profileData?.user?.first_name || "Doctor"} readOnly style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                                            </div>
+                                            <div>
+                                                <label>Email</label>
+                                                <input type="email" value={profileData?.user?.email || "doctor@hospital.com"} readOnly style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                                            </div>
+                                            <div>
+                                                <label>Hospital</label>
+                                                <input type="text" value={profileData?.hospital_name || "Central City Hospital"} readOnly style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #eee', backgroundColor: '#f9f9f9', color: '#666' }} />
+                                            </div>
+                                            <div>
+                                                <label>Department</label>
+                                                <input type="text" value={profileData?.department || "Surgery"} readOnly style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                                            </div>
+                                            <div>
+                                                <label>Phone Number</label>
+                                                <input type="tel" value={profileData?.phone_number || "+1 (555) 019-2834"} readOnly style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                                            </div>
+                                            <div>
+                                                <label>Medical License No.</label>
+                                                <input type="text" value={profileData?.license_number || "MD-884920"} readOnly style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #eee', backgroundColor: '#f9f9f9', color: '#666' }} />
+                                            </div>
+                                        </div>
+                                        <button type="button" className="btn btn-primary" style={{ padding: '12px', fontSize: '16px', maxWidth: '200px', marginTop: '10px' }} onClick={() => Swal.fire('Saved', 'Other profile updates should be handled by Admin as per policy.', 'info')}>
+                                            Save Changes
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            case 'dashboard':
+            default:
+                return (
+                    <div className="dashboard-grid fade-in">
+                        {/* Summary Widgets */}
+                        <div className="col-span-4 card" style={{ padding: '20px', textAlign: 'center' }}>
+                            <h3 style={{ color: '#666', fontSize: '14px', textTransform: 'uppercase' }}>My Pending Requests</h3>
+                            <h1 style={{ fontSize: '36px', color: '#1976d2', margin: '10px 0' }}>4</h1>
+                            <button className="btn btn-outline text-xs" onClick={() => setActiveTab('status')}>View All</button>
+                        </div>
+                        <div className="col-span-4 card" style={{ padding: '20px', textAlign: 'center' }}>
+                            <h3 style={{ color: '#666', fontSize: '14px', textTransform: 'uppercase' }}>Completed This Week</h3>
+                            <h1 style={{ fontSize: '36px', color: '#2e7d32', margin: '10px 0' }}>12</h1>
+                            <span style={{ fontSize: '12px', color: '#666' }}>Successful Transfusions</span>
+                        </div>
+                        <div className="col-span-4 card" style={{ padding: '20px', textAlign: 'center', backgroundColor: '#fff3e0' }}>
+                            <h3 style={{ color: '#e65100', fontSize: '14px', textTransform: 'uppercase' }}>Network Alerts</h3>
+                            <h1 style={{ fontSize: '36px', color: '#e65100', margin: '10px 0' }}>1</h1>
+                            <span style={{ fontSize: '12px', color: '#e65100' }}>O- Shortage in Region</span>
+                        </div>
+
+                        {/* Recent Activity */}
+                        <div className="col-span-12 card" style={{ marginTop: '20px' }}>
+                            <div className="card-header">
+                                <h2>Recent Updates</h2>
+                            </div>
+                            <div className="card-body">
+                                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                                    <li style={{ padding: '15px 0', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                        <div style={{ background: '#e8f5e9', padding: '10px', borderRadius: '50%', color: '#2e7d32' }}><CheckCircle size={20} /></div>
+                                        <div>
+                                            <strong style={{ display: 'block' }}>Request Approved: Patient Maria Garcia (PT-11293)</strong>
+                                            <span style={{ color: '#666', fontSize: '13px' }}>Blood Bank has dispatched 4 units of O-. Expected arrival in 15 mins.</span>
+                                        </div>
+                                        <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#999' }}>10 mins ago</span>
+                                    </li>
+                                    <li style={{ padding: '15px 0', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                        <div style={{ background: '#e3f2fd', padding: '10px', borderRadius: '50%', color: '#1976d2' }}><Activity size={20} /></div>
+                                        <div>
+                                            <strong style={{ display: 'block' }}>Transfusion Completed: Patient Susan Lee (PT-88331)</strong>
+                                            <span style={{ color: '#666', fontSize: '13px' }}>1 unit of A+ successfully transfused.</span>
+                                        </div>
+                                        <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#999' }}>2 hours ago</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                );
+        }
     };
 
     return (
-        <div className="doctor-dashboard-modern">
-            {/* Sidebar */}
-            <aside className="sidebar glass-effect">
-                <div className="sidebar-header">
-                    <div className="doctor-profile-mini">
-                        <div className="avatar">DR</div>
-                        <div className="info">
-                            <strong>Dr. E. Chen</strong>
-                            <span>Chief Surgeon</span>
-                        </div>
-                    </div>
+        <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f6f8' }} className="doctor-dashboard">
+            {/* SIDEBAR */}
+            <div style={{ width: '260px', backgroundColor: '#ffffff', borderRight: '1px solid #e0e0e0', padding: '20px 0', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ padding: '0 20px 20px', borderBottom: '1px solid #eee', marginBottom: '10px' }}>
+                    <h2 style={{ fontSize: '20px', color: '#d32f2f', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Activity size={24} /> HopeDrop
+                    </h2>
+                    <span style={{ fontSize: '12px', color: '#666', textTransform: 'uppercase', letterSpacing: '1px' }}>Doctor Portal</span>
                 </div>
-                
-                <nav className="sidebar-nav">
+
+                <nav style={{ display: 'flex', flexDirection: 'column', gap: '5px', padding: '0 10px' }}>
                     {[
                         { id: 'dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
-                        { id: 'requests', icon: <Droplet size={20} />, label: 'Blood Requests' },
-                        { id: 'emergency', icon: <AlertCircle size={20} />, label: 'Emergency Cases' },
+                        { id: 'request', icon: <Droplet size={20} />, label: 'Request Blood' },
+                        { id: 'status', icon: <ClipboardList size={20} />, label: 'Request Status' },
+                        { id: 'availability', icon: <Search size={20} />, label: 'Check Availability' },
+                        { id: 'patients', icon: <User size={20} />, label: 'Patient Records' },
+                        { id: 'notifications', icon: <Bell size={20} />, label: 'Notifications' },
+                        { id: 'profile', icon: <UserCircle size={20} />, label: 'My Profile' },
                     ].map(item => (
                         <button
                             key={item.id}
-                            className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
-                            onClick={() => scrollToSection(item.id)}
+                            onClick={() => setActiveTab(item.id)}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px',
+                                border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '15px', fontWeight: '500',
+                                backgroundColor: activeTab === item.id ? '#e3f2fd' : 'transparent',
+                                color: activeTab === item.id ? '#1976d2' : '#555',
+                                textAlign: 'left', transition: 'all 0.2s'
+                            }}
                         >
-                            {item.icon} <span>{item.label}</span>
+                            {item.icon} {item.label}
                         </button>
                     ))}
                 </nav>
+            </div>
 
-            </aside>
-
-            {/* Main Area */}
-            <main className="main-area">
-                <header className="topbar glass-effect">
-                    <div className="search-wrapper">
-                        <SearchIcon size={18} />
-                        <input type="text" placeholder="Search patients, requests, ID..." />
+            {/* MAIN CONTENT AREA */}
+            <div style={{ flex: 1, padding: '30px', overflowY: 'auto' }}>
+                {/* Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '30px' }}>
+                    <div>
+                        <h1 style={{ margin: '0 0 5px 0', fontSize: '28px', color: '#333' }}>{profileData?.full_name || profileData?.user?.first_name || "Doctor Dashboard"}</h1>
+                        <p style={{ margin: 0, color: '#666', fontSize: '15px' }}>{profileData?.hospital_name || "Central City Hospital"} • Dept of {profileData?.department || "Surgery"}</p>
                     </div>
-                    <div className="topbar-actions">
-                        <button className="icon-btn relative">
-                            <Bell size={20} />
-                            <span className="notification-dot"></span>
-                        </button>
-                    </div>
-                </header>
-
-                <div className="dashboard-layout">
-                    <div className="left-column">
-                        {renderMainContent()}
-                    </div>
-                    
-                    {/* Right Side Panel */}
-                    <div className="right-column">
-                        {/* Inventory Snapshot */}
-                        <div className="side-panel glass-card">
-                            <h3>Inventory Snapshot</h3>
-                            <div className="inventory-grid">
-                                {inventory.map(item => (
-                                    <div key={item.type} className={`inv-item ${item.status.toLowerCase()}`}>
-                                        <span className="type">{item.type}</span>
-                                        <span className="units">{item.units}U</span>
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="inv-legend">
-                                <span className="legend-item"><span className="dot good"></span> Healthy</span>
-                                <span className="legend-item"><span className="dot low"></span> Low</span>
-                                <span className="legend-item"><span className="dot critical"></span> Critical</span>
-                            </div>
-                        </div>
-
-                        {/* Notifications */}
-                        <div className="side-panel glass-card mt-4">
-                            <h3>Recent Notifications</h3>
-                            <div className="notification-list">
-                                {notifications.map(notif => (
-                                    <div key={notif.id} className={`notif-item ${notif.type}`}>
-                                        <div className="notif-content">
-                                            <strong>{notif.title}</strong>
-                                            <p>{notif.message}</p>
-                                            <span className="time">{notif.time}</span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Activity Timeline */}
-                        <div className="side-panel glass-card mt-4 flex-grow">
-                            <h3>Activity Timeline</h3>
-                            <div className="timeline">
-                                {timeline.map((item, idx) => (
-                                    <div key={idx} className="timeline-item">
-                                        <div className="timeline-dot"></div>
-                                        <div className="timeline-content">
-                                            <p>{item.action}</p>
-                                            <span className="time">{item.time}</span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
+                    <button
+                        onClick={handleEmergencyRequest}
+                        style={{
+                            backgroundColor: '#d32f2f', color: 'white', border: 'none', padding: '12px 24px',
+                            borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px',
+                            fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 12px rgba(211, 47, 47, 0.3)'
+                        }}
+                    >
+                        <Ambulance size={20} />
+                        EMERGENCY REQUEST
+                    </button>
                 </div>
-            </main>
-            
-            {renderPatientModal()}
+
+                {/* Render active tab content */}
+                {renderContent()}
+            </div>
         </div>
     );
 };
