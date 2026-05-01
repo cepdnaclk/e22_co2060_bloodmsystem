@@ -1,0 +1,148 @@
+.eligibility-dashboard {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.eligibility-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-title-container {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+}
+
+.questions-count {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    font-weight: 500;
+    background-color: var(--color-background);
+    padding: var(--spacing-1) var(--spacing-3);
+    border-radius: var(--radius-full);
+}
+
+.questions-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-6);
+    /* Plenty of space requested */
+    margin-bottom: var(--spacing-8);
+}
+
+.question-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: var(--spacing-4);
+    background-color: var(--color-background);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    transition: all var(--transition-fast);
+}
+
+.question-item:hover {
+    border-color: var(--color-primary-light);
+    box-shadow: var(--shadow-sm);
+}
+
+.question-text {
+    flex: 1;
+    font-size: var(--font-size-base);
+    color: var(--color-secondary);
+    padding-right: var(--spacing-4);
+    line-height: 1.5;
+}
+
+.question-text strong {
+    color: var(--color-primary);
+    margin-right: var(--spacing-2);
+}
+
+.question-actions {
+    display: flex;
+    gap: var(--spacing-2);
+}
+
+.btn-radio {
+    padding: var(--spacing-2) var(--spacing-5);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+    color: var(--color-text);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-radio:hover {
+    background-color: var(--color-background);
+}
+
+.btn-radio.selected.yes {
+    background-color: var(--color-success-bg, #e8f5e9);
+    color: var(--color-success, #2e7d32);
+    border-color: var(--color-success, #2e7d32);
+}
+
+.btn-radio.selected.no {
+    background-color: var(--color-primary-light, #ffebee);
+    color: var(--color-primary, #d32f2f);
+    border-color: var(--color-primary, #d32f2f);
+}
+
+.submit-section {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: var(--spacing-4);
+    border-top: 1px dashed var(--color-border);
+}
+
+.btn-submit {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    padding: var(--spacing-3) var(--spacing-6);
+    font-size: var(--font-size-base);
+    transition: all var(--transition-fast);
+}
+
+.btn-submit:hover {
+    background-color: var(--color-warning) !important;
+    /* App's orange color (#F57F17) */
+    border-color: var(--color-warning) !important;
+}
+
+/* Ensure the submit button text/icon are visible in dark mode */
+[data-theme="dark"] .btn-submit {
+    background-color: #1a1a2e;
+    color: #e6edf3;
+    border: 1px solid #30363d;
+}
+
+[data-theme="dark"] .btn-submit:hover {
+    background-color: #a6c209 !important;
+    /* Explicit orange color for dark mode */
+    color: #1a1a2e !important;
+    /* Make text dark to contrast with the bright orange */
+    border-color: #a6c209 !important;
+}
+
+
+@media (max-width: 768px) {
+    .question-item {
+        flex-direction: column;
+        gap: var(--spacing-4);
+    }
+
+    .question-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .btn-radio {
+        flex: 1;
+    }
+}

@@ -1,0 +1,11 @@
+name: Main Full CI
+
+on:
+  push:
+    branches: ["config"]
+
+jobs:
+  backend:
+    uses: ./.github/workflows/backend-pr.yml
+  frontend:
+    uses: ./.github/workflows/frontend-pr.yml
