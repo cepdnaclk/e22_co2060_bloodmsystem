@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { LayoutDashboard, User, Settings, LogOut, Droplets, History, Calendar, Phone, Hospital, IdCard, Edit2, Camera, QrCode, Menu, X as CloseIcon, Clock, FileText, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getDonorProfile, updateDonorProfile, getDonorDashboard, getDonorDonations } from '../../services/donorService';
-import { getDonorAlerts, markAlertRead } from '../../services/alertService';
+import { getDonorAlerts } from '../../services/alertService';
 import { getUpcomingCamps, registerForCamp } from '../../services/campService';
 import { QRCodeCanvas } from 'qrcode.react';
 import Swal from 'sweetalert2';
-import { Bell, MapPin, Search, Activity, CheckCircle, XCircle, X as XIcon, AlertTriangle, Info } from 'lucide-react';
+import { Bell, MapPin, Search, Activity, CheckCircle, XCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import './DonorDashboard.css';
 const DonorSideBar = ({ profile, currentView, setView, onUpdate, isMobileOpen, closeMobileMenu }) => {
@@ -29,8 +29,8 @@ const DonorSideBar = ({ profile, currentView, setView, onUpdate, isMobileOpen, c
           icon: 'success', title: 'Avatar Updated', toast: true,
           position: 'top-end', showConfirmButton: false, timer: 3000
         });
-        if (onUpdate) onUpdate();
-      } catch (err) {
+        if (onUpdate) onUpdate(true);
+      } catch {
         Swal.fire({ icon: 'error', title: 'Upload Failed' });
       } finally {
         setIsUploading(false);
@@ -131,7 +131,7 @@ const ProfileView = ({ profile, onUpdate }) => {
     try {
       await updateDonorProfile(editData);
       Swal.fire({ icon: 'success', title: 'Profile Updated', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
-      onUpdate(); // Reload original
+      onUpdate?.(true); // Silent refresh of the shared dashboard state
       setIsEditing(false);
       setEditData(null);
     } catch (err) {
@@ -211,7 +211,7 @@ const ProfileView = ({ profile, onUpdate }) => {
     </div>
   );
 };
-const DashboardOverview = ({ profile, dashboardStats, alerts, upcomingCamps, onRegisterCamp, onDismissAlert, onToggleAvailability }) => {
+const DashboardOverview = ({ profile, dashboardStats, upcomingCamps, onRegisterCamp, onToggleAvailability }) => {
   // Use real server-computed data from /donor/dashboard/ API
   const nextEligible = dashboardStats?.next_eligible
     ? new Date(dashboardStats.next_eligible).toLocaleDateString()
@@ -318,10 +318,22 @@ const DashboardOverview = ({ profile, dashboardStats, alerts, upcomingCamps, onR
                     </p>
                   </div>
                   <button
-                    onClick={() => onRegisterCamp(camp.id)}
-                    style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 600, background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', cursor: 'pointer' }}
+                    onClick={() => !camp.is_registered && onRegisterCamp(camp.id)}
+                    disabled={!isEligible || camp.is_registered}
+                    style={{ 
+                      padding: '6px 12px', 
+                      borderRadius: '6px', 
+                      fontSize: '0.85rem', 
+                      fontWeight: 600, 
+                      background: camp.is_registered ? '#dcfce7' : (isEligible ? '#fee2e2' : '#f3f4f6'), 
+                      color: camp.is_registered ? '#15803d' : (isEligible ? '#dc2626' : '#9ca3af'), 
+                      border: `1px solid ${camp.is_registered ? '#bbf7d0' : (isEligible ? '#fca5a5' : '#e5e7eb')}`, 
+                      cursor: (isEligible && !camp.is_registered) ? 'pointer' : 'not-allowed',
+                      opacity: (!isEligible && !camp.is_registered) ? 0.7 : 1,
+                      transition: 'all 0.2s'
+                    }}
                   >
-                    Register
+                    {camp.is_registered ? 'Registered' : (isEligible ? 'Register' : 'Not Eligible')}
                   </button>
                 </div>
               ))
@@ -527,9 +539,9 @@ const DonorDashboard = () => {
   const [donationsMeta, setDonationsMeta] = useState({ next: null, previous: null, count: 0, currentPage: 1 });
   const [historyFilter, setHistoryFilter] = useState('');
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       // Fetch profile, stats, alerts, and camps in parallel
       const [profileData, statsData, alertsData, campsData] = await Promise.all([
         getDonorProfile(),
@@ -540,13 +552,23 @@ const DonorDashboard = () => {
       setProfile(profileData);
       setDashboardStats(statsData);
       setAlerts(alertsData);
-      setUpcomingCamps(campsData.results || campsData); // Handle pagination if present
+      const newCamps = campsData.results || campsData;
+      setUpcomingCamps(prevCamps => {
+        if (!prevCamps || prevCamps.length === 0) return newCamps;
+        return newCamps.map(camp => {
+          const prevCamp = prevCamps.find(pc => pc.id === camp.id);
+          return {
+            ...camp,
+            is_registered: camp.is_registered || (prevCamp ? prevCamp.is_registered : false)
+          };
+        });
+      });
     } catch (err) {
       console.error("Fetch error", err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, []);
 
   // Extract unread alerts count
   const unreadCount = alerts?.filter(a => !a.is_read)?.length || 0;
@@ -564,7 +586,7 @@ const DonorDashboard = () => {
         title: `You are now ${newStatus ? 'Available' : 'Unavailable'}`,
         toast: true, position: 'top-end', showConfirmButton: false, timer: 2000
       });
-    } catch (err) {
+    } catch {
       // Revert on error
       setProfile({ ...profile, is_available: !profile.is_available });
       setDashboardStats({ ...dashboardStats, is_available: profile.is_available });
@@ -573,9 +595,19 @@ const DonorDashboard = () => {
   };
 
   const handleRegisterCamp = async (campId) => {
+    if (!dashboardStats?.is_eligible) {
+      Swal.fire('Not Eligible', 'You are not currently eligible to donate blood.', 'warning');
+      return;
+    }
     try {
       await registerForCamp(campId);
       Swal.fire('Registered!', 'Your request to donate has been sent.', 'success');
+      // Update local state to reflect registration immediately
+      setUpcomingCamps(prevCamps => 
+        prevCamps.map(camp => 
+          camp.id === campId ? { ...camp, is_registered: true } : camp
+        )
+      );
     } catch (err) {
       const msg = err.response?.data?.detail || 'Failed to register';
       Swal.fire('Error', msg, 'error');
@@ -606,7 +638,6 @@ const DonorDashboard = () => {
   const handleHistoryPageChange = (page) => fetchDonations(page);
   const handleHistoryFilterChange = (status) => {
     setHistoryFilter(status);
-    fetchDonations(1, status);
   };
 
   useEffect(() => {
@@ -614,18 +645,18 @@ const DonorDashboard = () => {
 
     // Live update polling for dashboard data
     const intervalId = setInterval(() => {
-      fetchData();
+      fetchData(true);
     }, 10000); // 10 seconds
 
     return () => clearInterval(intervalId);
-  }, []);
+  }, [fetchData]);
 
   // Fetch donations when switching to history tab
   useEffect(() => {
     if (view === 'history') {
       fetchDonations(1, historyFilter);
     }
-  }, [view]);
+  }, [view, fetchDonations, historyFilter]);
   return (
     <div className="donor-container flex-layout">
       <DonorSideBar
@@ -661,7 +692,7 @@ const DonorDashboard = () => {
             </div>
           ) : (
             <>
-              {view === 'dashboard' && <DashboardOverview profile={profile} dashboardStats={dashboardStats} alerts={alerts} upcomingCamps={upcomingCamps} onRegisterCamp={handleRegisterCamp} onToggleAvailability={handleToggleAvailability} />}
+               {view === 'dashboard' && <DashboardOverview profile={profile} dashboardStats={dashboardStats} upcomingCamps={upcomingCamps} onRegisterCamp={handleRegisterCamp} onToggleAvailability={handleToggleAvailability} />}
               {view === 'history' && (
                 <HistoryView
                   donations={donations}
@@ -672,7 +703,7 @@ const DonorDashboard = () => {
                   currentFilter={historyFilter}
                 />
               )}
-              {view === 'profile' && <ProfileView profile={profile} onUpdate={fetchData} />}
+               {view === 'profile' && <ProfileView profile={profile} onUpdate={fetchData} />}
               {view === 'settings' && (
                 <div className="animate-in">
                   <h1 className="page-title">Settings</h1>
