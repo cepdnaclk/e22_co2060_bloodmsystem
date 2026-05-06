@@ -13,7 +13,6 @@ import {
     Activity,
     User,
     Calendar,
-    Stethoscope,
     ClipboardList,
     Home,
     Mail,
@@ -27,7 +26,6 @@ export const ICON_MAP = {
     Activity,
     User,
     Calendar,
-    Stethoscope,
     ClipboardList,
     Home,
     Mail,
@@ -40,10 +38,10 @@ const ROLE_CONFIG = {
     admin: {
         label: 'System Administrator',
         dashboard: '/adminDashboard',
-        allowedRoutes: ['/adminDashboard', '/staffViews', '/doctor', '/donor', '/patient', '/events'],
+        allowedRoutes: ['/adminDashboard', '/staff', '/doctor', '/donor', '/patient', '/events'],
         navItems: [
             { path: '/doctor',  label: 'Medical',  icon: 'Activity' },
-            { path: '/staffViews',   label: 'Lab',      icon: 'ClipboardList' },
+            { path: '/staff',   label: 'Lab',      icon: 'ClipboardList' },
             { path: '/donor',   label: 'Donor',    icon: 'User' },
         ],
     },
@@ -51,11 +49,9 @@ const ROLE_CONFIG = {
     medical_officer: {
         label: 'Medical Officer',
         dashboard: '/doctor',
-        allowedRoutes: ['/doctor', '/patient', '/events', '/staffViews'],
+        allowedRoutes: ['/doctor', '/patient', '/events'],
         navItems: [
             { path: '/doctor',  label: 'Medical',  icon: 'Activity' },
-
-            { path: '/staffViews',   label: 'Lab',      icon: 'ClipboardList' },
         ],
     },
 
@@ -80,9 +76,10 @@ const ROLE_CONFIG = {
     bloodcamp: {
         label: 'Blood Camp Organizer',
         dashboard: '/bloodcamp',
-        allowedRoutes: ['/bloodcamp', '/events'],
+        allowedRoutes: ['/bloodcamp', '/staff', '/events'],
         navItems: [
             { path: '/bloodcamp', label: 'Camp', icon: 'Calendar' },
+            { path: '/staff', label: 'Lab', icon: 'ClipboardList' },
         ],
     },
 };

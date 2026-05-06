@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
   Users, Building, Droplet, AlertCircle, Heart,
-  Search, Download, Edit, Trash2, Activity, Calendar
+  Search, Download, Edit, Trash2, Bell
 } from 'lucide-react';
 import { getAdminDashboardStats, getAdminDonors, getAdminCamps } from '../../services/adminDashboardService';
+import { getWorkflowNotifications, markWorkflowNotificationRead } from '../../services/campService';
+import Swal from 'sweetalert2';
 import './AdminDashboard.css';
 
 const StatCard = ({ title, value, color, Icon }) => (
@@ -33,9 +35,13 @@ const AdminDashboard = () => {
     total_units: 0,
     pending_requests: 0,
     approved_donations: 0,
+    workflow_status_counts: {},
+    today_donated_count: 0,
+    rejection_reason_summary: [],
   });
   const [donors, setDonors] = useState([]);
   const [camps, setCamps] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -43,8 +49,12 @@ const AdminDashboard = () => {
       setLoading(true);
       try {
         if (activeTab === 'overview') {
-          const statsData = await getAdminDashboardStats();
+          const [statsData, notificationData] = await Promise.all([
+            getAdminDashboardStats(),
+            getWorkflowNotifications(),
+          ]);
           setDashboardStats(statsData);
+          setNotifications(notificationData);
           const donorsData = await getAdminDonors();
           const campsData = await getAdminCamps();
           setDonors(donorsData);
@@ -63,6 +73,8 @@ const AdminDashboard = () => {
       }
     };
     fetchData();
+    const timer = setInterval(fetchData, 8000);
+    return () => clearInterval(timer);
   }, [activeTab]);
 
   // Handlers for Donors
@@ -98,17 +110,41 @@ const AdminDashboard = () => {
     alert("Exporting Camp Organizers List to CSV...");
   };
 
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+
+  const handleOpenNotifications = async () => {
+    const html = notifications.length
+      ? `<div style="text-align:left;max-height:300px;overflow:auto;">${notifications.map(
+          (n) => `<div style="padding:8px 0;border-bottom:1px solid #eee;">
+              <strong>${n.event_type}</strong><br/>
+              <span>${n.message}</span><br/>
+              <small>${new Date(n.created_at).toLocaleString()}</small>
+            </div>`
+        ).join('')}</div>`
+      : '<p>No notifications.</p>';
+    await Swal.fire({ title: 'Workflow Notifications', html, width: 700 });
+    await Promise.all(notifications.filter((n) => !n.is_read).map((n) => markWorkflowNotificationRead(n.id)));
+  };
+
   return (
     <div className="admin-dashboard">
       <div className="dashboard-header">
         <h2 className="dashboard-title">Admin Command Center</h2>
         <p className="dashboard-subtitle">Manage inventory, donors, and campaigns seamlessly.</p>
+        <button className="export-btn" onClick={handleOpenNotifications}>
+          <Bell size={16} /> Notifications ({unreadCount})
+        </button>
       </div>
 
 
 
       <div className="tab-content">
-        {activeTab === 'overview' && (
+        {loading && (
+          <div className="overview-section fade-in">
+            <p>Loading dashboard data...</p>
+          </div>
+        )}
+        {!loading && activeTab === 'overview' && (
           <div className="overview-section fade-in">
             <div className="stats-grid">
               <StatCard title="Total Donors" value={donors.length} Icon={Users} color="stat-blue" />
@@ -116,27 +152,37 @@ const AdminDashboard = () => {
               <StatCard title="Blood Units" value={dashboardStats.total_units} Icon={Droplet} color="stat-red" />
               <StatCard title="Pending Requests" value={dashboardStats.pending_requests} Icon={AlertCircle} color="stat-orange" />
               <StatCard title="Approved Donations" value={dashboardStats.approved_donations} Icon={Heart} color="stat-green" />
+              <StatCard title="Today Donated" value={dashboardStats.today_donated_count} Icon={Heart} color="stat-blue" />
             </div>
 
             <div className="advanced-stats-placeholder">
               <div className="placeholder-card">
-                <h4>Inventory Status Indicator</h4>
-                <div className="mock-chart bar-chart"></div>
-                <p>O+ is currently high, AB- is critically low.</p>
+                <h4>Workflow Status Counts</h4>
+                <ul className="triage-list">
+                  {Object.entries(dashboardStats.workflow_status_counts || {}).map(([key, value]) => (
+                    <li key={key}>{key}: {value}</li>
+                  ))}
+                  {Object.keys(dashboardStats.workflow_status_counts || {}).length === 0 && (
+                    <li>No workflow data yet.</li>
+                  )}
+                </ul>
               </div>
               <div className="placeholder-card">
-                <h4>Emergency Triage Queue</h4>
+                <h4>Top Rejection Reasons</h4>
                 <ul className="triage-list">
-                  <li className="critical">City Hospital - 5 units O- (Critical)</li>
-                  <li className="warning">Metro Clinic - 2 units A+ (Urgent)</li>
-                  <li>General Hosp - 10 units B+ (Standard)</li>
+                  {(dashboardStats.rejection_reason_summary || []).map((item) => (
+                    <li key={item.rejection_reason}>{item.rejection_reason} ({item.count})</li>
+                  ))}
+                  {(dashboardStats.rejection_reason_summary || []).length === 0 && (
+                    <li>No rejection records.</li>
+                  )}
                 </ul>
               </div>
             </div>
           </div>
         )}
 
-        {activeTab === 'donors' && (
+        {!loading && activeTab === 'donors' && (
           <div className="data-section fade-in">
             <div className="data-toolbar">
               <div className="search-box">
@@ -194,7 +240,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {activeTab === 'camps' && (
+        {!loading && activeTab === 'camps' && (
           <div className="data-section fade-in">
             <div className="data-toolbar">
               <div className="search-box">

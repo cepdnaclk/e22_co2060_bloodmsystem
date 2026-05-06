@@ -1,92 +1,109 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/auth/useAuth';
 import {
-    AlertCircle, Activity, Search, Ambulance,
-    LayoutDashboard, Droplet, ClipboardList, Bell, User, Clock, CheckCircle, XCircle,
-    UserCircle, Camera, QrCode
+    Activity, Search, Ambulance,
+    LayoutDashboard, Droplet, ClipboardList, Bell, User,
+    UserCircle, Camera, QrCode, Stethoscope
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import './DoctorDashboard.scss';
 import QRScanner from '../../components/doctor/QRScanner';
 import { getDoctorRequests, createBloodRequest } from '../../api/bloodRequestService';
 import { getBloodStock } from '../../api/inventoryService';
+import api from '../../api/api';
+import {
+    approveCampRegistration,
+    getScreeningQueue,
+    getWorkflowNotifications,
+    markWorkflowNotificationRead,
+    rejectCampRegistration,
+} from '../../services/campService';
 
 const DoctorDashboard = () => {
     const [activeTab, setActiveTab] = useState('dashboard');
     const [profileImage, setProfileImage] = useState(null);
-    const { user, authTokens } = useAuth();
+    const { user } = useAuth();
     const [profileData, setProfileData] = useState(null);
-    
-    // Data states
+
     const [requests, setRequests] = useState([]);
     const [inventory, setInventory] = useState({});
+    const [screeningQueue, setScreeningQueue] = useState([]);
+    const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [queueActionLoading, setQueueActionLoading] = useState(null);
 
-    const API_BASE = "http://localhost:8000/api/v1/users";
+    const [userProfileData, setUserProfileData] = useState(null);
 
     useEffect(() => {
         if (user && user.user_id) {
             fetchDoctorProfile();
             fetchDashboardData();
+            const timer = setInterval(fetchDashboardData, 8000);
+            return () => clearInterval(timer);
         }
-    }, [user, authTokens]);
+    }, [user]);
 
     const fetchDashboardData = async () => {
         setLoading(true);
-        // Fetch Requests
-        const reqRes = await getDoctorRequests();
-        if (reqRes.success) {
-            setRequests(reqRes.data);
-        }
+        const [reqRes, invRes, queueRes, notiRes] = await Promise.all([
+            getDoctorRequests(),
+            getBloodStock(),
+            getScreeningQueue(),
+            getWorkflowNotifications(),
+        ]);
 
-        // Fetch Inventory
-        const invRes = await getBloodStock();
-        if (invRes.success) {
-            setInventory(invRes.data);
-        }
+        if (reqRes.success) setRequests(reqRes.data);
+        if (invRes.success) setInventory(invRes.data);
+        setScreeningQueue(Array.isArray(queueRes) ? queueRes : []);
+        setNotifications(Array.isArray(notiRes) ? notiRes : []);
         setLoading(false);
     };
 
     const fetchDoctorProfile = async () => {
         try {
-            const res = await axios.get(`${API_BASE}/doctor/profile/${user.user_id}/`, {
-                headers: { Authorization: `Bearer ${authTokens?.access}` }
-            });
-            setProfileData(res.data);
-            if (res.data.profile_pic) {
-                setProfileImage(res.data.profile_pic);
+            const [doctorRes, profileRes] = await Promise.all([
+                api.get(`adminDashboard/doctor/profile/${user.user_id}/`),
+                api.get('auth/profile/'),
+            ]);
+            setProfileData(doctorRes.data);
+            setUserProfileData(profileRes.data);
+            if (doctorRes.data.profile_pic) {
+                setProfileImage(doctorRes.data.profile_pic);
             }
         } catch (error) {
-            console.error("Error fetching profile", error);
+            try {
+                const profileRes = await api.get('auth/profile/');
+                setUserProfileData(profileRes.data);
+                setProfileData(null);
+            } catch {
+                setUserProfileData(null);
+                setProfileData(null);
+            }
         }
     };
 
     const handleImageUpload = async (e) => {
         const file = e.target.files[0];
-        if (file) {
-            const formData = new FormData();
-            formData.append('profile_pic', file);
+        if (!file) return;
 
-            try {
-                await axios.patch(`${API_BASE}/doctor/profile-pic/`, formData, {
-                    headers: {
-                        Authorization: `Bearer ${authTokens?.access}`,
-                        'Content-Type': 'multipart/form-data'
-                    }
-                });
+        const formData = new FormData();
+        formData.append('profile_pic', file);
 
-                setProfileImage(URL.createObjectURL(file));
-                Swal.fire({
-                    title: 'Photo Uploaded!',
-                    text: 'Your profile photo has been updated.',
-                    icon: 'success',
-                    timer: 1500,
-                    showConfirmButton: false
-                });
-            } catch (err) {
-                Swal.fire('Upload Failed', 'Could not save the image. Try again.', 'error');
-            }
+        try {
+            await api.patch('medicalOfficers/doctor/profile-pic/', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            setProfileImage(URL.createObjectURL(file));
+            Swal.fire({
+                title: 'Photo Uploaded!',
+                text: 'Your profile photo has been updated.',
+                icon: 'success',
+                timer: 1500,
+                showConfirmButton: false
+            });
+        } catch (err) {
+            Swal.fire('Upload Failed', 'Could not save the image. Try again.', 'error');
         }
     };
 
@@ -109,22 +126,19 @@ const DoctorDashboard = () => {
             showCancelButton: true,
             confirmButtonColor: '#d32f2f',
             confirmButtonText: 'SUBMIT EMERGENCY REQUEST',
-            preConfirm: () => {
-                return {
-                    blood_group: document.getElementById('em-blood').value,
-                    units_requested: document.getElementById('em-units').value,
-                    priority_level: 'CRITICAL'
-                }
-            }
+            preConfirm: () => ({
+                blood_group: document.getElementById('em-blood').value,
+                units_requested: document.getElementById('em-units').value,
+                priority_level: 'CRITICAL'
+            })
         }).then(async (result) => {
-            if (result.isConfirmed) {
-                const res = await createBloodRequest(result.value);
-                if (res.success) {
-                    Swal.fire('Dispatched!', 'Emergency request sent to Blood Bank and Alerts sent to Donors.', 'success');
-                    fetchDashboardData();
-                } else {
-                    Swal.fire('Error', 'Failed to dispatch emergency request.', 'error');
-                }
+            if (!result.isConfirmed) return;
+            const res = await createBloodRequest(result.value);
+            if (res.success) {
+                Swal.fire('Dispatched!', 'Emergency request sent.', 'success');
+                fetchDashboardData();
+            } else {
+                Swal.fire('Error', 'Failed to dispatch emergency request.', 'error');
             }
         });
     };
@@ -134,19 +148,130 @@ const DoctorDashboard = () => {
         const formData = new FormData(e.target);
         const data = Object.fromEntries(formData.entries());
         data.priority_level = data.urgency === 'Critical (Immediate)' ? 'CRITICAL' : (data.urgency === 'Urgent (Within 4h)' ? 'HIGH' : 'NORMAL');
-        
+
         const res = await createBloodRequest(data);
         if (res.success) {
             Swal.fire('Success', 'Blood Request Submitted successfully', 'success');
             fetchDashboardData();
             setActiveTab('requests');
         } else {
-            Swal.fire('Error', res.error.detail || 'Submission failed', 'error');
+            Swal.fire('Error', res.error?.detail || 'Submission failed', 'error');
         }
     };
 
+    const handleApproveDonor = async (registrationId) => {
+        try {
+            setQueueActionLoading(registrationId);
+            await approveCampRegistration(registrationId);
+            await fetchDashboardData();
+            Swal.fire('Approved', 'Donor approved for collection.', 'success');
+        } catch (error) {
+            Swal.fire('Error', error.response?.data?.detail || 'Could not approve donor.', 'error');
+        } finally {
+            setQueueActionLoading(null);
+        }
+    };
+
+    const handleRejectDonor = async (registrationId) => {
+        const result = await Swal.fire({
+            title: 'Reject Donor',
+            input: 'text',
+            inputLabel: 'Reason for rejection',
+            inputPlaceholder: 'e.g. Hb below threshold',
+            showCancelButton: true,
+            preConfirm: (reason) => {
+                if (!reason) Swal.showValidationMessage('Rejection reason is required');
+                return reason;
+            },
+        });
+        if (!result.isConfirmed) return;
+
+        try {
+            setQueueActionLoading(registrationId);
+            await rejectCampRegistration(registrationId, result.value);
+            await fetchDashboardData();
+            Swal.fire('Rejected', 'Donor rejected with reason.', 'info');
+        } catch (error) {
+            Swal.fire('Error', error.response?.data?.detail || 'Could not reject donor.', 'error');
+        } finally {
+            setQueueActionLoading(null);
+        }
+    };
+
+    const handleOpenNotifications = async () => {
+        const html = notifications.length
+            ? `<div style="text-align:left;max-height:300px;overflow:auto;">${notifications.map(
+                (n) => `<div style="padding:8px 0;border-bottom:1px solid #eee;">
+                    <strong>${n.event_type}</strong><br/>
+                    <span>${n.message}</span><br/>
+                    <small>${new Date(n.created_at).toLocaleString()}</small>
+                  </div>`
+            ).join('')}</div>`
+            : '<p>No notifications.</p>';
+        await Swal.fire({ title: 'Notifications', html, width: 700 });
+        await Promise.all(notifications.filter((n) => !n.is_read).map((n) => markWorkflowNotificationRead(n.id)));
+        await fetchDashboardData();
+    };
+
+    const displayName = profileData?.full_name || userProfileData?.profile?.fullName || profileData?.user?.first_name || user?.username || "Doctor Dashboard";
+    const displayEmail = profileData?.user?.email || userProfileData?.user?.email || "";
+    const displayHospital = profileData?.hospital || userProfileData?.profile?.hospital || "Hospital";
+    const displayDepartment = profileData?.specialization || "Dept";
+
     const renderContent = () => {
         switch (activeTab) {
+            case 'screening-queue':
+                return (
+                    <div className="card fade-in">
+                        <div className="card-header">
+                            <h2>Screening Queue</h2>
+                        </div>
+                        <div className="card-body p-0 data-table-wrapper">
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Camp</th>
+                                        <th>Donor</th>
+                                        <th>Blood Group</th>
+                                        <th>Phone</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {screeningQueue.length === 0 ? (
+                                        <tr><td colSpan="6" style={{ textAlign: 'center', padding: 20 }}>No donors waiting for screening.</td></tr>
+                                    ) : screeningQueue.map((item) => (
+                                        <tr key={item.id}>
+                                            <td>{item.camp_title}</td>
+                                            <td>{item.donor_name}</td>
+                                            <td>{item.donor_blood_group || 'N/A'}</td>
+                                            <td>{item.donor_phone || 'N/A'}</td>
+                                            <td><span className={`badge ${item.status}`}>{item.status}</span></td>
+                                            <td style={{ display: 'flex', gap: 8 }}>
+                                                <button
+                                                    className="btn btn-primary"
+                                                    onClick={() => handleApproveDonor(item.id)}
+                                                    disabled={queueActionLoading === item.id}
+                                                >
+                                                    Approve
+                                                </button>
+                                                <button
+                                                    className="btn"
+                                                    style={{ backgroundColor: '#d32f2f', color: '#fff' }}
+                                                    onClick={() => handleRejectDonor(item.id)}
+                                                    disabled={queueActionLoading === item.id}
+                                                >
+                                                    Reject
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                );
             case 'request-blood':
                 return (
                     <div className="card fade-in">
@@ -178,7 +303,7 @@ const DoctorDashboard = () => {
                                 </div>
                                 <div>
                                     <label>Reason for Transfusion</label>
-                                    <textarea name="reason" rows="2" className="input-field" placeholder="Surgery, Accident, etc." required></textarea>
+                                    <textarea name="reason" rows="2" className="input-field" placeholder="Surgery, Accident, etc." required />
                                 </div>
                                 <div style={{ gridColumn: '1 / -1' }}>
                                     <button type="submit" className="btn btn-primary" style={{ padding: '12px', fontSize: '16px' }}>
@@ -278,19 +403,19 @@ const DoctorDashboard = () => {
                                 <div style={{ flex: 1, minWidth: '250px' }} className="form-grid">
                                     <div>
                                         <label>Full Name</label>
-                                        <input type="text" value={profileData?.full_name || profileData?.user?.first_name || ""} className="input-field" readOnly />
+                                        <input type="text" value={displayName} className="input-field" readOnly />
                                     </div>
                                     <div>
                                         <label>Email</label>
-                                        <input type="email" value={profileData?.user?.email || ""} className="input-field" readOnly />
+                                        <input type="email" value={displayEmail} className="input-field" readOnly />
                                     </div>
                                     <div>
                                         <label>Hospital</label>
-                                        <input type="text" value={profileData?.hospital || ""} className="input-field" readOnly />
+                                        <input type="text" value={displayHospital} className="input-field" readOnly />
                                     </div>
                                     <div>
                                         <label>Department</label>
-                                        <input type="text" value={profileData?.specialization || ""} className="input-field" readOnly />
+                                        <input type="text" value={displayDepartment} className="input-field" readOnly />
                                     </div>
                                 </div>
                             </div>
@@ -313,7 +438,11 @@ const DoctorDashboard = () => {
                             <h1 style={{ fontSize: '36px', color: '#ed6c02', margin: '10px 0' }}>{pendingCount}</h1>
                         </div>
                         <div className="col-span-4 card" style={{ padding: '20px', textAlign: 'center' }}>
-                            <h3 style={{ color: '#666', fontSize: '14px', textTransform: 'uppercase' }}>Completed</h3>
+                            <h3 style={{ color: '#666', fontSize: '14px', textTransform: 'uppercase' }}>Donors Waiting Screening</h3>
+                            <h1 style={{ fontSize: '36px', color: '#1976d2', margin: '10px 0' }}>{screeningQueue.length}</h1>
+                        </div>
+                        <div className="col-span-12 card" style={{ padding: '20px', textAlign: 'center' }}>
+                            <h3 style={{ color: '#666', fontSize: '14px', textTransform: 'uppercase' }}>Completed Requests</h3>
                             <h1 style={{ fontSize: '36px', color: '#2e7d32', margin: '10px 0' }}>{completedCount}</h1>
                         </div>
                     </div>
@@ -321,9 +450,10 @@ const DoctorDashboard = () => {
         }
     };
 
+    const unreadCount = notifications.filter((n) => !n.is_read).length;
+
     return (
         <div className="doctor-dashboard">
-            {/* SIDEBAR */}
             <div className="doctor-sidebar">
                 <div className="sidebar-header" style={{ padding: '0 20px 20px', borderBottom: '1px solid #eee', marginBottom: '10px' }}>
                     <h2 style={{ fontSize: '20px', color: '#d32f2f', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -335,6 +465,7 @@ const DoctorDashboard = () => {
                 <nav style={{ display: 'flex', flexDirection: 'column', gap: '5px', padding: '0 10px' }}>
                     {[
                         { id: 'dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
+                        { id: 'screening-queue', icon: <Stethoscope size={20} />, label: 'Screening Queue' },
                         { id: 'request-blood', icon: <Droplet size={20} />, label: 'Request Blood' },
                         { id: 'requests', icon: <ClipboardList size={20} />, label: 'My Requests' },
                         { id: 'availability', icon: <Search size={20} />, label: 'Blood Availability' },
@@ -358,22 +489,21 @@ const DoctorDashboard = () => {
                 </nav>
             </div>
 
-            {/* MAIN CONTENT AREA */}
             <div className="main-content">
                 <div className="header-actions">
                     <div>
                         <h1 style={{ margin: '0 0 5px 0', fontSize: '28px', color: '#333' }}>
-                            {profileData?.full_name || profileData?.user?.first_name || "Doctor Dashboard"}
+                            {displayName}
                         </h1>
                         <p style={{ margin: 0, color: '#666', fontSize: '15px' }}>
-                            {profileData?.hospital || "Hospital"} • {profileData?.specialization || "Dept"}
+                            {displayHospital} • {displayDepartment}
                         </p>
                     </div>
-                    
+
                     <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                        <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => Swal.fire('Notifications', 'No new notifications.', 'info')}>
+                        <div style={{ position: 'relative', cursor: 'pointer' }} onClick={handleOpenNotifications}>
                             <Bell size={24} color="#555" />
-                            <span style={{ position: 'absolute', top: -5, right: -5, background: '#d32f2f', color: '#fff', borderRadius: '50%', width: 18, height: 18, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>0</span>
+                            <span style={{ position: 'absolute', top: -5, right: -5, background: '#d32f2f', color: '#fff', borderRadius: '50%', width: 18, height: 18, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{unreadCount}</span>
                         </div>
                         <button
                             onClick={handleEmergencyRequest}
