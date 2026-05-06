@@ -180,6 +180,24 @@
     color: #d32f2f;
     border: 1px solid #d32f2f;
   }
+
+  &.registered, &.arrived, &.screening {
+    background-color: #fff3e0;
+    color: #ed6c02;
+    border: 1px solid #ed6c02;
+  }
+
+  &.approved, &.donated {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #2e7d32;
+  }
+
+  &.rejected {
+    background-color: #ffebee;
+    color: #d32f2f;
+    border: 1px solid #d32f2f;
+  }
 }
 
 .fade-in {

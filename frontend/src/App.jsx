@@ -80,7 +80,7 @@ function App() {
               } />
 
               <Route path="/staff" element={
-                <RoleRoute allowedRoles={['medical_officer', 'admin']}>
+                <RoleRoute allowedRoles={['bloodcamp', 'admin']}>
                   <LabDashboard />
                 </RoleRoute>
               } />

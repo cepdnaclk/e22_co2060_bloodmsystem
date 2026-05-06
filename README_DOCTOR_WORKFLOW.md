@@ -61,3 +61,82 @@ The "Blood Availability" tab is directly wired to the backend `LiveStockResponse
 - **GET `/api/v1/bloodinventor/doctor/requests/`**: Fetch logged-in doctor's requests.
 - **GET `/api/v1/bloodinventor/public/live-stock/`**: Real-time grouped inventory data.
 - **GET `/api/v1/donor/public/{qr_id}/`**: Fetch secure donor details via QR.
+
+---
+
+## ✅ Camp Donor Workflow Phase (Newly Added)
+
+This phase introduces a strict state machine for camp donation processing in the backend.
+
+### 1. New status flow
+
+`registered -> arrived -> screening -> approved/rejected -> donated`
+
+Model: `backEnd/main/apps/donor/models/campRegistration.py`
+
+### 2. New tracking fields on `CampRegistration`
+
+- `arrived_at`
+- `screened_at`
+- `screened_by`
+- `rejection_reason`
+- `collected_at`
+- `collected_by`
+
+### 3. Transition APIs added
+
+Base prefix: `/api/v1/donor/`
+
+- **POST** `/camps/registrations/<id>/arrive/`  
+  Mark donor as arrived at camp.
+- **POST** `/camps/registrations/<id>/screening/`  
+  Send donor to doctor screening queue.
+- **POST** `/camps/registrations/<id>/approve/`  
+  Doctor approves donor after screening.
+- **POST** `/camps/registrations/<id>/reject/`  
+  Doctor rejects donor with required reason.
+- **POST** `/camps/registrations/<id>/donate/`  
+  Staff marks donation complete (`donated` status).
+
+Compatibility route retained:
+- **POST** `/camps/registrations/<id>/complete/` (mapped to donate logic)
+
+### 4. Transition validation rules
+
+Only these transitions are accepted:
+
+- `registered -> arrived`
+- `arrived -> screening`
+- `screening -> approved` or `screening -> rejected`
+- `approved -> donated`
+
+Invalid jumps return HTTP `400` with a transition error message.
+
+### 5. Migration added
+
+File: `backEnd/main/apps/donor/migrations/0006_registration_workflow_fields.py`
+
+Data migration mapping:
+- `pending -> registered`
+- `completed -> donated`
+
+### 6. What happens when status becomes `donated`
+
+In one atomic backend transaction:
+- registration updated to `donated`
+- donor donation counters/date updated
+- `DonationHistory` record created
+- donor notification created
+
+### 7. Role behavior in this phase
+
+- **Blood camp staff (`bloodcamp`) / admin**: arrive, screening, donate actions
+- **Doctor / admin**: approve and reject actions
+
+### 8. Apply this phase locally
+
+```bash
+cd "backEnd/main"
+python manage.py migrate
+python manage.py test apps.donor --verbosity 2
+```
