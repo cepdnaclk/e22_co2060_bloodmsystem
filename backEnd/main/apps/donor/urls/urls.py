@@ -4,9 +4,12 @@ from ..services.bloodCampService import (
     UpcomingBloodCampsView,
     LatestPublicBloodCampView,
     OrganizerBloodCampView,
+    MarkArrivedCampRegistrationView,
+    SendToScreeningCampRegistrationView,
     RegisterForCampView,
     CampRegistrationsView,
     ApproveCampRegistrationView,
+    RejectCampRegistrationView,
     CompleteCampRegistrationView,
 )
 from ..services.donationHistoryService import DonorDonationHistoryView
@@ -29,6 +32,10 @@ urlpatterns = [
     path('camps/', OrganizerBloodCampView.as_view(), name='organizer-camps'),
     path('camps/<int:pk>/register/', RegisterForCampView.as_view(), name='register-camp'),
     path('camps/<int:pk>/registrations/', CampRegistrationsView.as_view(), name='camp-registrations'),
+    path('camps/registrations/<int:pk>/arrive/', MarkArrivedCampRegistrationView.as_view(), name='arrive-camp-registration'),
+    path('camps/registrations/<int:pk>/screening/', SendToScreeningCampRegistrationView.as_view(), name='screening-camp-registration'),
     path('camps/registrations/<int:pk>/approve/', ApproveCampRegistrationView.as_view(), name='approve-camp-registration'),
+    path('camps/registrations/<int:pk>/reject/', RejectCampRegistrationView.as_view(), name='reject-camp-registration'),
+    path('camps/registrations/<int:pk>/donate/', CompleteCampRegistrationView.as_view(), name='donate-camp-registration'),
     path('camps/registrations/<int:pk>/complete/', CompleteCampRegistrationView.as_view(), name='complete-camp-registration'),
 ]
