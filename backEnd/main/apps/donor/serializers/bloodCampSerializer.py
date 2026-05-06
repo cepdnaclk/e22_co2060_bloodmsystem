@@ -46,9 +46,26 @@ class CampRegistrationSerializer(serializers.ModelSerializer):
             "camp_title",
             "status",
             "appointment_time",
+            "arrived_at",
+            "screened_at",
+            "screened_by",
+            "rejection_reason",
+            "collected_at",
+            "collected_by",
             "created_at",
         ]
-        read_only_fields = ["id", "donor", "camp", "created_at"]
+        read_only_fields = [
+            "id",
+            "donor",
+            "camp",
+            "arrived_at",
+            "screened_at",
+            "screened_by",
+            "rejection_reason",
+            "collected_at",
+            "collected_by",
+            "created_at",
+        ]
 
     def _profile(self, obj):
         return getattr(obj.donor.user, "profile", None)
