@@ -5,6 +5,7 @@ from .models.campRegistration import CampRegistration
 from .models.donationHistory import DonationHistory
 from .models.donorAlert import DonorAlert
 from .models.donorDetails import DonorDetails
+from .models.workflowNotification import WorkflowNotification
 
 
 @admin.register(DonorDetails)
@@ -42,3 +43,10 @@ class CampRegistrationAdmin(admin.ModelAdmin):
     list_display = ("donor", "camp", "status", "appointment_time", "created_at")
     list_filter = ("status", "camp")
     search_fields = ("donor__user__username", "camp__title")
+
+
+@admin.register(WorkflowNotification)
+class WorkflowNotificationAdmin(admin.ModelAdmin):
+    list_display = ("user", "event_type", "is_read", "created_at")
+    list_filter = ("event_type", "is_read")
+    search_fields = ("message", "user__username", "user__email")
