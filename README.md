@@ -64,13 +64,3 @@ The Blood Bank Application helps **donors, medical staff, and administrators** e
 - **Maps Integration**: Google Maps API / Leaflet.js
 - **Notifications**: SMS & Email services (Twilio / SendGrid)
 
-## 🗂️ Project Workflow
-
-```mermaid
-graph LR
-A[Project Initialization] --> B[Donor Interface]
-B --> C[Donor Interaction & Maps]
-C --> D[Medical Staff Portal]
-D --> E[Camp Host & Admin]
-E --> F[Admin Power Features]
-F --> G[Special Features & Polishing]
