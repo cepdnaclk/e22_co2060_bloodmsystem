@@ -43,6 +43,11 @@ export const markRegistrationArrived = async (registrationId) => {
   return response.data;
 };
 
+export const getOrganizerDonatedHistory = async () => {
+  const response = await api.get("donor/camps/donated-history/");
+  return response.data;
+};
+
 export const sendRegistrationToScreening = async (registrationId) => {
   const response = await api.post(`donor/camps/registrations/${registrationId}/screening/`);
   return response.data;

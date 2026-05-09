@@ -372,3 +372,43 @@ class CompleteCampRegistrationView(APIView):
             )
 
         return Response({"detail": "Donor marked as donated and history updated."}, status=status.HTTP_200_OK)
+
+
+class DonorAfterDonateView(APIView):
+    """
+    GET /api/v1/donor/camps/donated-history/
+    Returns all completed (donated) registrations across the organizer's camps.
+    Only accessible to 'bloodcamp' organizers and admins.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role not in {ROLE_BLOOD_CAMP, ROLE_ADMIN}:
+            raise PermissionDenied("Only camp organizers can view donated history.")
+
+        # Get all donated registrations for camps owned by this organizer
+        registrations = CampRegistration.objects.filter(
+            status="donated",
+            camp__organizer=request.user,
+        ).select_related("donor__user", "camp").order_by("-collected_at")
+
+        data = []
+        for reg in registrations:
+            # Safely get blood group from profile
+            blood_group = getattr(
+                getattr(reg.donor.user, "profile", None),
+                "blood_group",
+                "Unknown",
+            ) or "Unknown"
+
+            data.append({
+                "id": reg.id,
+                "donor_name": reg.donor.user.username,
+                "blood_group": blood_group,
+                "camp_title": reg.camp.title,
+                "camp_location": reg.camp.location,
+                "donated_at": reg.collected_at,
+                "status": reg.status,
+            })
+
+        return Response(data, status=status.HTTP_200_OK)
